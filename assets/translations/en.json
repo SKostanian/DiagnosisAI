@@ -25,6 +25,8 @@
     "google_continue": "Continue with current Google account",
     "google_use_another": "Use another account",
     "sign_out": "Sign out",
+    "signed_out": "You signed out",
+    "switched_account": "Switched account",
 
     "account_unverified": "Your account {0} is not verified. Please check your email",
     "email_unverified_banner": "Your account isn’t verified. Please verify your email to continue.",
