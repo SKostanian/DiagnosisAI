@@ -38,3 +38,19 @@ ios/Flutter/Flutter.framework
 # --- Misc ---
 .DS_Store
 Thumbs.db
+# --- Flutter generated ---
+.flutter-plugins
+.flutter-plugins-dependencies
+**/flutter_export_environment.sh
+**/.last_build_id
+
+# --- Logs ---
+*.log
+# --- Flutter generated ---
+.flutter-plugins
+.flutter-plugins-dependencies
+**/flutter_export_environment.sh
+**/.last_build_id
+
+# --- Logs ---
+*.log
