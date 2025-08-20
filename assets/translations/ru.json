@@ -1,0 +1,128 @@
+{
+  "auth": {
+    "title_part1": "Ваш ",
+    "title_highlight": "диагностический ИИ-терапевт",
+    "title_part2": " — всегда под рукой!",
+
+    "continue_google": "Продолжить через Google",
+    "continue_apple": "Продолжить через Apple",
+    "or": "или",
+    "sign_in_email_phone": "Войти через Email или Телефон",
+    "sign_in_using": "Войти с помощью",
+    "email_password": "Email и Пароль",
+    "phone_number": "Номер Телефона",
+    "skip_registration": "Пропустить регистрацию",
+
+    "dialog_are_you_sure": "Вы уверены?",
+    "dialog_not_saved": "Ваш прогресс не будет сохранён.",
+    "no": "Нет",
+    "yes": "Да",
+    "welcome": "Добро пожаловать!",
+    "signed_in_as": "Вы вошли как",
+    "continue": "Продолжить",
+    "google_failed": "Ошибка входа через Google",
+    "google_continue_as": "Продолжить как {0}",
+    "google_continue": "Продолжить с текущей учётной записью Google",
+    "google_use_another": "Использовать другой аккаунт",
+    "sign_out": "Выйти из аккаунта",
+
+    "account_unverified": "У вас не подтверждён аккаунт {0}. Проверьте почту.",
+    "email_unverified_banner": "Ваш аккаунт не подтверждён. Подтвердите почту, чтобы продолжить.",
+    "verify_now": "Подтвердить",
+
+    "sign_up_title": "Регистрация",
+    "email": "Эл. почта",
+    "password": "Пароль",
+    "sign_in": "Войти",
+    "back_to_auth": "Назад к входу",
+    "register": "Зарегистрироваться",
+    "confirm_password": "Повторите пароль",
+    "passwords_do_not_match": "Пароли не совпадают",
+    "already_have_account": "Уже есть аккаунт? Войдите",
+    "does_not_have_account": "Нет аккаунта? Зарегистрируйтесь",
+
+    "strength_weak": "Слабый",
+    "strength_medium": "Средний",
+    "strength_strong": "Надёжный",
+
+    "fill_all_fields": "Заполните все обязательные поля",
+    "email_required": "Введите адрес электронной почты",
+    "email_invalid": "Неверный формат email",
+    "password_required": "Введите пароль",
+    "password_too_short": "Пароль должен содержать минимум 6 символов",
+    "confirm_password_required": "Подтвердите пароль",
+    "email_already_registered": "Этот адрес уже зарегистрирован",
+
+    "sign_in_title": "Вход",
+    "unknown_error": "Произошла неизвестная ошибка",
+    "user_not_found": "Пользователь с таким email не найден",
+    "wrong_password": "Неверный пароль",
+    "invalid_credential": "Неверная пара email/пароль",
+    "too_many_requests": "Слишком много попыток. Попробуйте позже",
+
+    "send_code": "Отправить код",
+    "sending": "Отправляем…",
+    "verify_and_sign_in": "Подтвердить и войти",
+    "verifying": "Проверяем…",
+    "resend_code": "Отправить код повторно",
+    "sms_sent": "SMS отправлено",
+    "phone_required": "Укажите номер телефона",
+    "invalid_phone": "Введите корректный номер, начиная с +",
+    "sms_code": "Код из SMS",
+    "sms_code_required": "Введите код из SMS",
+    "sms_code_invalid": "Неверный код",
+    "session_expired": "Сессия истекла. Отправьте код заново.",
+    "network_error": "Ошибка сети. Попробуйте ещё раз.",
+    "captcha_failed": "Проверка reCAPTCHA не пройдена.",
+    "billing_not_enabled": "Для входа по телефону нужен биллинг, если включён reCAPTCHA Enterprise. Отключите его в Firebase Auth или включите Billing в GCP."
+
+  },
+
+  "consent": {
+    "title": "Согласие на обработку данных",
+    "description": "Наше приложение обрабатывает персональные данные, включая контактную информацию и ответы на вопросы о симптомах. Данные используются для персонализации, аналитики и улучшения сервиса. Приложение не заменяет консультацию врача.",
+    "privacy_policy": "Политика конфиденциальности",
+    "terms_of_use": "Пользовательское соглашение",
+    "medical_disclaimer": "Медицинский дисклеймер",
+    "accept_checkbox": "Я прочитал(а) и принимаю условия",
+    "accept_button": "Согласен(а)",
+    "decline": "Не согласен(а)"
+  },
+
+"verify": {
+    "title": "Подтвердите почту",
+    "subtitle": "Мы отправили ссылку для подтверждения на:",
+    "i_verified": "Я подтвердил(а)",
+    "checking": "Проверяем...",
+    "resend": "Отправить письмо ещё раз",
+    "resend_in": "Повторить через {0} сек",
+    "sent_again": "Письмо повторно отправлено",
+    "success": "Почта подтверждена! Добро пожаловать!",
+    "not_yet": "Почта пока не подтверждена. Перейдите по ссылке в письме.",
+    "tip": "Откройте почтовое приложение и нажмите на ссылку подтверждения."
+  },
+
+  "body": {
+    "title": "Где вы чувствуете дискомфорт?",
+    "subtitle": "Укажите Области",
+    "continue": "Продолжить",
+    "selected_fmt": "{} Выбрано",
+    "head": "Голова",
+    "eyes": "Глаза",
+    "ears": "Уши",
+    "mouth_throat": "Рот / Горло",
+    "chest_breath": "Грудь / Дыхание",
+    "abdomen_stomach": "Живот / Желудок",
+    "arms": "Руки",
+    "back": "Спина",
+    "legs": "Ноги",
+    "pelvic": "Тазовая область",
+    "skin": "Кожа",
+    "general_other": "Общее / Другое"
+  },
+
+  "menu": {
+    "home": "Дом",
+    "chat": "ИИ Чат"
+  }
+}

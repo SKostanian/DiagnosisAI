@@ -1,0 +1,127 @@
+{
+  "auth": {
+    "title_part1": "Your ",
+    "title_highlight": "Diagnostical AI therapist",
+    "title_part2": " – always on hand!",
+
+    "continue_google": "Continue with Google",
+    "continue_apple": "Continue with Apple",
+    "or": "or",
+    "sign_in_email_phone": "Sign in with Email or Phone",
+    "sign_in_using": "Sign in using",
+    "email_password": "Email & Password",
+    "phone_number": "Phone number",
+    "skip_registration": "Skip registration",
+
+    "dialog_are_you_sure": "Are you sure?",
+    "dialog_not_saved": "Your progress won't be saved.",
+    "no": "No",
+    "yes": "Yes",
+    "welcome": "Welcome!",
+    "signed_in_as": "Signed in as",
+    "continue": "Continue",
+    "google_failed": "Google Sign-In failed",
+    "google_continue_as": "Continue as {0}",
+    "google_continue": "Continue with current Google account",
+    "google_use_another": "Use another account",
+    "sign_out": "Sign out",
+
+    "account_unverified": "Your account {0} is not verified. Please check your email",
+    "email_unverified_banner": "Your account isn’t verified. Please verify your email to continue.",
+    "verify_now": "Verify",
+
+    "sign_up_title": "Sign Up",
+    "email": "Email",
+    "email_required": "Email is required",
+    "email_invalid": "Please enter a valid email address",
+    "password": "Password",
+    "password_required": "Password is required",
+    "password_too_short": "Password must be at least 6 characters long",
+    "sign_in": "Sign In",
+    "back_to_auth": "Back to Auth",
+    "register": "Register",
+    "confirm_password": "Repeat Password",
+    "confirm_password_required": "Please confirm your password",
+    "passwords_do_not_match": "Passwords do not match",
+    "already_have_account": "Already have an account? Please Sign in",
+    "does_not_have_account": "Don't have an account? Register here",
+
+    "strength_weak": "Weak",
+    "strength_medium": "Medium",
+    "strength_strong": "Strong",
+
+    "fill_all_fields": "Please fill in all required fields",
+    "unknown_error": "An unknown error occurred",
+    "email_already_registered": "This email is already registered",
+
+    "sign_in_title": "Sign In",
+    "user_not_found": "No user found with this email",
+    "wrong_password": "Incorrect password",
+    "invalid_credential": "Invalid email or password",
+    "too_many_requests": "Too many attempts. Please try again later",
+
+    "send_code": "Send code",
+    "sending": "Sending…",
+    "verify_and_sign_in": "Verify & Sign in",
+    "verifying": "Verifying…",
+    "resend_code": "Resend code",
+    "sms_sent": "SMS sent",
+    "phone_required": "Phone number is required",
+    "invalid_phone": "Enter a valid phone number (starting with +)",
+    "sms_code": "SMS code",
+    "sms_code_required": "Enter the SMS code",
+    "sms_code_invalid": "Invalid SMS code",
+    "session_expired": "Session expired. Please resend the code.",
+    "network_error": "Network error. Try again.",
+    "captcha_failed": "reCAPTCHA check failed. Try again.",
+    "billing_not_enabled": "Phone sign-in needs Cloud Billing when reCAPTCHA Enterprise is enabled. Disable it in Firebase Auth settings or enable Billing."
+  },
+
+  "consent": {
+    "title": "Consent to Data Processing",
+    "description": "Our application processes personal data, including contact information and answers to symptom-related questions. The data is used for personalization, analytics, and service improvement. The application does not replace a doctor's consultation.",
+    "privacy_policy": "Privacy Policy",
+    "terms_of_use": "Terms of Use",
+    "medical_disclaimer": "Medical Disclaimer",
+    "accept_checkbox": "I have read and accept the terms",
+    "accept_button": "Agree",
+    "decline": "Disagree"
+  },
+
+  "verify": {
+    "title": "Verify your email",
+    "subtitle": "We sent a verification link to:",
+    "i_verified": "I verified",
+    "checking": "Checking...",
+    "resend": "Resend email",
+    "resend_in": "Resend in {0}s",
+    "sent_again": "Verification email sent again",
+    "success": "Email verified! Welcome!",
+    "not_yet": "Not verified yet. Please click the link in your email.",
+    "tip": "Open your mail app and click the verification link."
+  },
+
+  "body": {
+    "title": "Where are you feeling discomfort?",
+    "subtitle": "Select the Areas",
+    "continue": "Continue",
+    "selected_fmt": "{} Selected",
+    "head": "Head",
+    "eyes": "Eyes",
+    "ears": "Ears",
+    "mouth_throat": "Mouth / Throat Area",
+    "chest_breath": "Chest / Breath",
+    "abdomen_stomach": "Abdomen / Stomach",
+    "arms": "Arms",
+    "back": "Back",
+    "legs": "Legs",
+    "pelvic": "Pelvic Area",
+    "skin": "Skin",
+    "general_other": "General / Other"
+  },
+
+  "menu": {
+    "home": "Home",
+    "chat": "AI Chat"
+  }
+}

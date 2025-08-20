@@ -1,0 +1,128 @@
+{
+  "auth": {
+    "title_part1": "Ο ",
+    "title_highlight": "διαγνωστικός AI θεραπευτής",
+    "title_part2": " – πάντα διαθέσιμος!",
+
+    "continue_google": "Συνέχεια με Google",
+    "continue_apple": "Συνέχεια με Apple",
+    "or": "ή",
+    "sign_in_email_phone": "Σύνδεση με Email ή Τηλέφωνο",
+    "sign_in_using": "Σύνδεση με",
+    "email_password": "Email και Κωδικός",
+    "phone_number": "Αριθμός τηλεφώνου",
+    "skip_registration": "Παράλειψη εγγραφής",
+
+    "dialog_are_you_sure": "Είσαι σίγουρος/η;",
+    "dialog_not_saved": "Η πρόοδός σου δεν θα αποθηκευτεί.",
+    "no": "Όχι",
+    "yes": "Ναι",
+    "welcome": "Καλώς ήρθες!",
+    "signed_in_as": "Συνδεθήκατε ως",
+    "continue": "Συνέχεια",
+    "google_failed": "Αποτυχία σύνδεσης Google",
+    "google_continue_as": "Συνέχεια ως {0}",
+    "google_continue": "Συνέχεια με τον τρέχοντα λογαριασμό Google",
+    "google_use_another": "Χρήση άλλου λογαριασμού",
+    "sign_out": "Αποσύνδεση",
+
+    "account_unverified": "Ο λογαριασμός σας {0} δεν έχει επαληθευτεί. Ελέγξτε το email σας.",
+    "email_unverified_banner": "Ο λογαριασμός σας δεν έχει επαληθευτεί. Επαληθεύστε το email για να συνεχίσετε.",
+    "verify_now": "Επαλήθευση",
+
+    "sign_up_title": "Εγγραφή",
+    "email": "Email",
+    "email_required": "Απαιτείται διεύθυνση email",
+    "email_invalid": "Παρακαλώ εισάγετε μια έγκυρη διεύθυνση email",
+    "password": "Κωδικός",
+    "password_required": "Απαιτείται κωδικός",
+    "password_too_short": "Ο κωδικός πρέπει να έχει τουλάχιστον 6 χαρακτήρες",
+    "sign_in": "Είσοδος",
+    "back_to_auth": "Πίσω",
+    "register": "Εγγραφή",
+    "confirm_password": "Επαναλάβετε τον κωδικό",
+    "confirm_password_required": "Παρακαλώ επιβεβαιώστε τον κωδικό",
+    "passwords_do_not_match": "Οι κωδικοί δεν ταιριάζουν",
+    "already_have_account": "Έχετε ήδη λογαριασμό; Συνδεθείτε",
+    "does_not_have_account": "Δεν έχετε λογαριασμό; Εγγραφείτε εδώ",
+
+    "strength_weak": "Αδύναμος",
+    "strength_medium": "Μέτριος",
+    "strength_strong": "Ισχυρός",
+
+    "fill_all_fields": "Συμπληρώστε όλα τα απαιτούμενα πεδία",
+    "email_already_registered": "Αυτό το email είναι ήδη καταχωρημένο",
+
+    "sign_in_title": "Είσοδος",
+    "unknown_error": "Παρουσιάστηκε άγνωστο σφάλμα",
+    "user_not_found": "Δεν βρέθηκε χρήστης με αυτό το email",
+    "wrong_password": "Λάθος κωδικός",
+    "invalid_credential": "Μη έγκυρο email ή κωδικός",
+    "too_many_requests": "Πάρα πολλές προσπάθειες. Δοκιμάστε αργότερα",
+
+    "send_code": "Αποστολή κωδικού",
+    "sending": "Γίνεται αποστολή…",
+    "verify_and_sign_in": "Επαλήθευση & είσοδος",
+    "verifying": "Γίνεται επαλήθευση…",
+    "resend_code": "Επαναποστολή κωδικού",
+    "sms_sent": "Το SMS στάλθηκε",
+    "phone_required": "Απαιτείται αριθμός τηλεφώνου",
+    "invalid_phone": "Εισάγετε έγκυρο αριθμό που αρχίζει με +",
+    "sms_code": "Κωδικός SMS",
+    "sms_code_required": "Εισάγετε τον κωδικό SMS",
+    "sms_code_invalid": "Μη έγκυρος κωδικός",
+    "session_expired": "Η συνεδρία έληξε. Στείλτε νέο κωδικό.",
+    "network_error": "Σφάλμα δικτύου. Προσπαθήστε ξανά.",
+    "captcha_failed": "Αποτυχία ελέγχου reCAPTCHA.",
+    "billing_not_enabled": "Απαιτείται χρέωση Cloud όταν είναι ενεργό το reCAPTCHA Enterprise. Απενεργοποιήστε το στο Firebase Auth ή ενεργοποιήστε τη χρέωση."
+
+  },
+
+  "consent": {
+    "title": "Συγκατάθεση για Επεξεργασία Δεδομένων",
+    "description": "Η εφαρμογή μας επεξεργάζεται προσωπικά δεδομένα, συμπεριλαμβανομένων στοιχείων επικοινωνίας και απαντήσεων σε ερωτήσεις σχετικά με τα συμπτώματα. Τα δεδομένα χρησιμοποιούνται για εξατομίκευση, ανάλυση και βελτίωση της υπηρεσίας. Η εφαρμογή δεν αντικαθιστά τη συμβουλή ιατρού.",
+    "privacy_policy": "Πολιτική Απορρήτου",
+    "terms_of_use": "Όροι Χρήσης",
+    "medical_disclaimer": "Ιατρική Δήλωση Αποποίησης Ευθύνης",
+    "accept_checkbox": "Διάβασα και αποδέχομαι τους όρους",
+    "accept_button": "Συμφωνώ",
+    "decline": "Διαφωνώ"
+  },
+
+  "verify": {
+    "title": "Επαληθεύστε το email σας",
+    "subtitle": "Στείλαμε σύνδεσμο επαλήθευσης στο:",
+    "i_verified": "Το επαλήθευσα",
+    "checking": "Γίνεται έλεγχος...",
+    "resend": "Επανάληψη αποστολής email",
+    "resend_in": "Επανάληψη σε {0}δ",
+    "sent_again": "Το email επαλήθευσης στάλθηκε ξανά",
+    "success": "Το email επαληθεύτηκε! Καλώς ήρθατε!",
+    "not_yet": "Δεν έχει επαληθευτεί ακόμη. Πατήστε τον σύνδεσμο στο email.",
+    "tip": "Ανοίξτε το mail app και πατήστε τον σύνδεσμο επαλήθευσης."
+  },
+
+  "body": {
+    "title": "Πού νιώθετε δυσφορία;",
+    "subtitle": "Δηλώστε τις Περιοχές",
+    "continue": "Συνέχεια",
+    "selected_fmt": "{} Επιλεγμένα",
+    "head": "Κεφάλι",
+    "eyes": "Μάτια",
+    "ears": "Αυτιά",
+    "mouth_throat": "Στόμα / Λαιμός",
+    "chest_breath": "Στήθος / Αναπνοή",
+    "abdomen_stomach": "Κοιλιά / Στομάχι",
+    "arms": "Χέρια",
+    "back": "Πλάτη",
+    "legs": "Πόδια",
+    "pelvic": "Πυελική περιοχή",
+    "skin": "Δέρμα",
+    "general_other": "Γενικά / Άλλο"
+  },
+
+  "menu": {
+    "home": "Αρχική",
+    "chat": "Συνομιλία με AI"
+  }
+}
