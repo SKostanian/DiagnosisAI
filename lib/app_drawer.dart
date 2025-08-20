@@ -65,7 +65,8 @@ class AppDrawer extends StatelessWidget {
               ),
             ),
           ),
-
+          // top separator
+          Divider(height: 1, thickness: 1, color: isDark ? Colors.white24 : Colors.black12),
           // Home screen with authentification
           _buildTile(
             context,
