@@ -42,6 +42,7 @@
     "passwords_do_not_match": "Пароли не совпадают",
     "already_have_account": "Уже есть аккаунт? Войдите",
     "does_not_have_account": "Нет аккаунта? Зарегистрируйтесь",
+    "account_exists_login": "Этот email уже зарегистрирован. Войдите в аккаунт",
 
     "strength_weak": "Слабый",
     "strength_medium": "Средний",
@@ -61,6 +62,12 @@
     "wrong_password": "Неверный пароль",
     "invalid_credential": "Неверная пара email/пароль",
     "too_many_requests": "Слишком много попыток. Попробуйте позже",
+    "forgot_password": "Забыли пароль?",
+    "reset_link_sent": "Ссылка для сброса пароля отправлена",
+    "email_enter_valid": "Введите корректный адрес электронной почты",
+    "use_google_to_sign_in": "Этот адрес зарегистрирован через Google. Пожалуйста, войдите с помощью Google.",
+    "user_disabled": "Этот аккаунт был отключён. Обратитесь в поддержку.",
+
 
     "send_code": "Отправить код",
     "sending": "Отправляем…",

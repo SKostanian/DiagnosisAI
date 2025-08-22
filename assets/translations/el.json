@@ -47,6 +47,7 @@
     "passwords_do_not_match": "Οι κωδικοί δεν ταιριάζουν",
     "already_have_account": "Έχετε ήδη λογαριασμό; Συνδεθείτε",
     "does_not_have_account": "Δεν έχετε λογαριασμό; Εγγραφείτε εδώ",
+    "account_exists_login": "Αυτό το email είναι ήδη καταχωρημένο. Συνδεθείτε στον λογαριασμό σας",
 
     "strength_weak": "Αδύναμος",
     "strength_medium": "Μέτριος",
@@ -61,6 +62,12 @@
     "wrong_password": "Λάθος κωδικός",
     "invalid_credential": "Μη έγκυρο email ή κωδικός",
     "too_many_requests": "Πάρα πολλές προσπάθειες. Δοκιμάστε αργότερα",
+    "forgot_password": "Ξεχάσατε τον κωδικό;",
+    "reset_link_sent": "Ο σύνδεσμος επαναφοράς κωδικού στάλθηκε",
+    "email_enter_valid": "Εισάγετε μια έγκυρη διεύθυνση email",
+    "use_google_to_sign_in": "Αυτό το email είναι καταχωρημένο μέσω Google. Παρακαλώ συνδεθείτε με το Google.",
+    "user_disabled": "Αυτός ο λογαριασμός έχει απενεργοποιηθεί. Επικοινωνήστε με την υποστήριξη.",
+
 
     "send_code": "Αποστολή κωδικού",
     "sending": "Γίνεται αποστολή…",

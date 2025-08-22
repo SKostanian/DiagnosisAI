@@ -47,6 +47,7 @@
     "passwords_do_not_match": "Passwords do not match",
     "already_have_account": "Already have an account? Please Sign in",
     "does_not_have_account": "Don't have an account? Register here",
+    "account_exists_login": "This email is already registered. Please log in instead",
 
     "strength_weak": "Weak",
     "strength_medium": "Medium",
@@ -61,6 +62,11 @@
     "wrong_password": "Incorrect password",
     "invalid_credential": "Invalid email or password",
     "too_many_requests": "Too many attempts. Please try again later",
+    "forgot_password": "Forgot password?",
+    "reset_link_sent": "Password reset link has been sent",
+    "email_enter_valid": "Please enter a valid email address",
+    "use_google_to_sign_in": "This email is registered with Google. Please sign in using Google.",
+    "user_disabled": "This account has been disabled. Contact support for assistance.",
 
     "send_code": "Send code",
     "sending": "Sending…",
