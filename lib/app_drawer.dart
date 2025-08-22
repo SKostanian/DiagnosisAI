@@ -12,10 +12,8 @@ class AppDrawer extends StatelessWidget {
     Key? key,
   }) : super(key: key);
 
-  // map locale code to language label
   String _mapCodeToLabel(String code) {
     switch (code) {
-      // if ru then russian, if el then greek and so on
       case 'ru':
         return 'Русский';
       case 'el':
@@ -25,7 +23,6 @@ class AppDrawer extends StatelessWidget {
     }
   }
 
-  // map label back to locale
   Locale _mapLabelToLocale(String label) {
     switch (label) {
       case 'Русский':
@@ -37,9 +34,8 @@ class AppDrawer extends StatelessWidget {
     }
   }
 
-  // go to function
   void _goTo(BuildContext context, String routeName) {
-    Navigator.of(context).pop(); // close drawer
+    Navigator.of(context).pop();
     Navigator.of(context).pushNamedAndRemoveUntil(routeName, (route) => false);
   }
 
@@ -54,6 +50,7 @@ class AppDrawer extends StatelessWidget {
         children: [
           // logo header
           DrawerHeader(
+            margin: EdgeInsets.zero,
             decoration: BoxDecoration(
               color: isDark ? Colors.grey.shade900 : const Color(0xFF63E6AB),
             ),
@@ -65,9 +62,6 @@ class AppDrawer extends StatelessWidget {
               ),
             ),
           ),
-          // top separator
-          Divider(height: 1, thickness: 1, color: isDark ? Colors.white24 : Colors.black12),
-          // Home screen with authentification
           _buildTile(
             context,
             Icons.home,
@@ -75,8 +69,6 @@ class AppDrawer extends StatelessWidget {
             isDark,
             onTap: () => _goTo(context, '/'),
           ),
-
-          // chat page
           _buildTile(
             context,
             Icons.chat_rounded,
@@ -84,10 +76,9 @@ class AppDrawer extends StatelessWidget {
             isDark,
             onTap: () {
 
+
             },
           ),
-
-          // dropdown language
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: Container(
@@ -134,7 +125,7 @@ class AppDrawer extends StatelessWidget {
                     if (value != null) {
                       final locale = _mapLabelToLocale(value);
                       context.setLocale(locale);
-                      onLanguageChanged(locale.languageCode); // обновить родителя
+                      onLanguageChanged(locale.languageCode);
                     }
                   },
                 ),
@@ -147,7 +138,6 @@ class AppDrawer extends StatelessWidget {
     );
   }
 
-  // build tile for menu items
   Widget _buildTile(
       BuildContext context,
       IconData icon,
