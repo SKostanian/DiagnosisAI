@@ -24,25 +24,45 @@ class _TriageChatScreenState extends State<TriageChatScreen> {
   String? _sessionId;
   TriageQuestion? _currentQ;
   TriageDiagnosis? _finalDx;
+
   final List<_Bubble> _bubbles = [];
+  final _askedIds = <String>{};
   final _textCtrl = TextEditingController();
+  final _scrollCtrl = ScrollController();
+
   bool _loading = true;
-  String? _singleSelected;
   String? _error;
 
-  @override
-  void initState() {
-    super.initState();
-    // context not ready yet, I call it in changeDependencies
-  }
+  // --- UI state for current answer ---
+  String? _singleSelected;
+  final Set<String> _multiSelected = <String>{};
+  double _sliderVal = 5;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (!_depsReady) {
       _depsReady = true;
-      _start(); // safe to use start here, it was my mistake earlier
+      _start();
     }
+  }
+
+  void _resetAnswerUi() {
+    _singleSelected = null;
+    _multiSelected.clear();
+    _sliderVal = 5;
+    _textCtrl.clear();
+  }
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollCtrl.hasClients) return;
+      _scrollCtrl.animateTo(
+        _scrollCtrl.position.maxScrollExtent + 120,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
+      );
+    });
   }
 
   Future<void> _start() async {
@@ -57,18 +77,34 @@ class _TriageChatScreenState extends State<TriageChatScreen> {
         selectedAreas: widget.selectedAreas,
       );
       _sessionId = result.sessionId;
+
       if (result.question != null) {
-        _currentQ = result.question;
-        _bubbles.add(_Bubble.bot(result.question!.text));
+        final q = result.question!;
+        if (!_askedIds.contains(q.id)) {
+          _askedIds.add(q.id);
+          _currentQ = q;
+          _bubbles.add(_Bubble.bot(q.text));
+          _resetAnswerUi();
+          _scrollToBottom();
+        }
       } else if (result.diagnosis != null) {
         _finalDx = result.diagnosis;
-        _bubbles.add(_Bubble.bot("${result.diagnosis!.explanationPatient}"));
+        _bubbles.add(_Bubble.bot(_finalDx!.explanationPatient));
+        _scrollToBottom();
       }
     } catch (e) {
       _error = e.toString();
     } finally {
       setState(() => _loading = false);
     }
+  }
+
+  String _formatNumberLabel(num v, String? unit) {
+    if ((unit ?? '').trim() == '0-10') {
+      final iv = v is double ? v.round() : v;
+      return '$iv/10';
+    }
+    return v.toString();
   }
 
   Future<void> _submitAnswer(dynamic valueToSend, String humanReadable) async {
@@ -79,6 +115,7 @@ class _TriageChatScreenState extends State<TriageChatScreen> {
       _loading = true;
       _error = null;
     });
+    _scrollToBottom();
 
     try {
       final res = await _api.postAnswer(
@@ -86,27 +123,36 @@ class _TriageChatScreenState extends State<TriageChatScreen> {
         questionId: _currentQ!.id,
         value: valueToSend,
       );
+
       if (res.question != null) {
-        _currentQ = res.question;
-        _finalDx = null;
-        _bubbles.add(_Bubble.bot(_currentQ!.text));
+        var q = res.question!;
+        // show only fresh questions
+        if (!_askedIds.contains(q.id)) {
+          _askedIds.add(q.id);
+          _currentQ = q;
+          _finalDx = null;
+          _bubbles.add(_Bubble.bot(q.text));
+          _resetAnswerUi();
+          _scrollToBottom();
+        } else {
+          debugPrint('Duplicate question ignored: ${q.id}');
+        }
       } else {
         _currentQ = null;
         _finalDx = res.diagnosis;
-        _bubbles.add(_Bubble.bot("${_finalDx!.explanationPatient}"));
+        _bubbles.add(_Bubble.bot(_finalDx!.explanationPatient));
+        _scrollToBottom();
       }
     } catch (e) {
       _error = e.toString();
     } finally {
       _textCtrl.clear();
-      _singleSelected = null;
       setState(() => _loading = false);
     }
   }
 
   Widget _answerInput() {
     if (_finalDx != null || _currentQ == null) {
-      // when Diagnosis is ready - show short summary (and red flags if any)
       return const SizedBox.shrink();
     }
 
@@ -123,7 +169,7 @@ class _TriageChatScreenState extends State<TriageChatScreen> {
               selected: selected,
               onSelected: (val) {
                 if (val) {
-                  _singleSelected = o;
+                  setState(() => _singleSelected = o);
                   _submitAnswer(o, o);
                 }
               },
@@ -131,34 +177,111 @@ class _TriageChatScreenState extends State<TriageChatScreen> {
           }).toList(),
         );
 
-      case 'number':
-        return Row(
+      case 'multi':
+        final opts = _currentQ!.options;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: TextField(
-                controller: _textCtrl,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  hintText: _currentQ!.unit != null
-                      ? 'Enter number (${_currentQ!.unit})'
-                      : 'Enter number',
-                ),
-              ),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: opts.map((o) {
+                final selected = _multiSelected.contains(o);
+                return FilterChip(
+                  label: Text(o),
+                  selected: selected,
+                  onSelected: (val) {
+                    setState(() {
+                      if (val) {
+                        _multiSelected.add(o);
+                      } else {
+                        _multiSelected.remove(o);
+                      }
+                    });
+                  },
+                );
+              }).toList(),
             ),
-            const SizedBox(width: 8),
-            ElevatedButton(
-              onPressed: () {
-                final raw = _textCtrl.text.trim();
-                if (raw.isEmpty) return;
-                final num? parsed = num.tryParse(raw);
-                if (parsed == null) return;
-                final label = _currentQ!.unit != null ? '$raw ${_currentQ!.unit}' : raw;
-                _submitAnswer(parsed, label.toString());
-              },
-              child: const Text('OK'),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerRight,
+              child: ElevatedButton(
+                onPressed: _multiSelected.isEmpty
+                    ? null
+                    : () {
+                  final list = _multiSelected.toList();
+                  _submitAnswer(list, list.join(', '));
+                },
+                child: Text(tr('done')),
+              ),
             ),
           ],
         );
+
+      case 'number':
+      case 'scale':
+        final is010 = (_currentQ!.unit ?? '').trim() == '0-10';
+        if (is010) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Slider(
+                value: _sliderVal,
+                min: 0,
+                max: 10,
+                divisions: 10,
+                label: _sliderVal.round().toString(),
+                onChanged: (v) => setState(() => _sliderVal = v),
+              ),
+              Row(
+                children: [
+                  Text('${_sliderVal.round()} / 10'),
+                  const Spacer(),
+                  ElevatedButton(
+                    onPressed: () {
+                      final v = _sliderVal.round();
+                      _submitAnswer(v, _formatNumberLabel(v, '0-10'));
+                    },
+                    child: const Text('OK'),
+                  ),
+                ],
+              ),
+            ],
+          );
+        } else {
+          return Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _textCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    hintText: _currentQ!.unit != null
+                        ? 'Enter number (${_currentQ!.unit})'
+                        : 'Enter number',
+                  ),
+                  onSubmitted: (_) {
+                    final raw = _textCtrl.text.trim();
+                    final num? parsed = num.tryParse(raw);
+                    if (parsed != null) {
+                      _submitAnswer(parsed, _formatNumberLabel(parsed, _currentQ!.unit));
+                    }
+                  },
+                ),
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton(
+                onPressed: () {
+                  final raw = _textCtrl.text.trim();
+                  final num? parsed = num.tryParse(raw);
+                  if (parsed == null) return;
+                  _submitAnswer(parsed, _formatNumberLabel(parsed, _currentQ!.unit));
+                },
+                child: const Text('OK'),
+              ),
+            ],
+          );
+        }
 
       case 'text':
       default:
@@ -168,6 +291,11 @@ class _TriageChatScreenState extends State<TriageChatScreen> {
               child: TextField(
                 controller: _textCtrl,
                 decoration: const InputDecoration(hintText: 'Type your answer...'),
+                onSubmitted: (raw) {
+                  raw = raw.trim();
+                  if (raw.isEmpty) return;
+                  _submitAnswer(raw, raw);
+                },
               ),
             ),
             const SizedBox(width: 8),
@@ -200,9 +328,26 @@ class _TriageChatScreenState extends State<TriageChatScreen> {
             ),
           Expanded(
             child: ListView.builder(
+              controller: _scrollCtrl,
               padding: const EdgeInsets.all(12),
-              itemCount: _bubbles.length,
+              itemCount: _bubbles.length + (_loading ? 1 : 0),
               itemBuilder: (_, i) {
+                if (_loading && i == _bubbles.length) {
+                  return Align(
+                    alignment: Alignment.centerLeft,
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(vertical: 6),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.grey.shade800 : Colors.white70,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.black12),
+                      ),
+                      child: const Text('typing…'),
+                    ),
+                  );
+                }
+
                 final b = _bubbles[i];
                 final align = b.isUser ? Alignment.centerRight : Alignment.centerLeft;
                 final color = b.isUser
@@ -225,7 +370,6 @@ class _TriageChatScreenState extends State<TriageChatScreen> {
               },
             ),
           ),
-          if (_loading) const LinearProgressIndicator(minHeight: 2),
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
             child: _answerInput(),

@@ -1,219 +1,207 @@
-// lib/triage/session_api.dart
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:diagnosis_ai/triage/models.dart';
 
+// clas to handle communication with server using Firebase and HTTP
 class SessionApi {
-  final FirebaseFunctions _fns;
-  SessionApi({FirebaseFunctions? functions})
-      : _fns = functions ?? FirebaseFunctions.instanceFor(region: 'us-central1');
+  final FirebaseFunctions _fns; // firebase functions instance
 
-  // Base url for local emulator (used only in debug mode)
+  // constructor, connect to emulator in debug mode
+  SessionApi({FirebaseFunctions? functions})
+      : _fns = functions ?? FirebaseFunctions.instanceFor(region: 'us-central1') {
+    if (kDebugMode) {
+      final host = (!kIsWeb && defaultTargetPlatform == TargetPlatform.android)
+          ? '10.0.2.2' // android emulator localhost
+          : 'localhost'; // other platforms
+      _fns.useFunctionsEmulator(host, 5001);
+    }
+  }
+
+  // private getter to build the base URL for fallback requests
   String get _httpBase {
     final isAndroid = !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
     final host = isAndroid ? '10.0.2.2' : 'localhost';
-    return 'http://$host:5001/health-app-9b2f5/us-central1';
+    final projectId = Firebase.app().options.projectId;
+    return 'http://$host:5001/$projectId/us-central1';
   }
 
-  // Timeout for http requests
+  // request timeout
   static const Duration _httpTimeout = Duration(seconds: 90);
 
-  // Decide if we should use http fallback instead of FirebaseFunctions
+  // check if should fall back to plain http request
   bool _shouldFallbackToHttp(FirebaseFunctionsException e) {
     return kDebugMode &&
         (e.code == 'internal' ||
             e.code == 'not-found' ||
-            e.code == 'deadline-exceeded');
+            e.code == 'deadline-exceeded' ||
+            e.code == 'unavailable');
   }
 
-  // Get Firebase id token for the current user
+  // get firebase ID token for auth
   Future<String> _getIdToken() async {
-    final user = FirebaseAuth.instance.currentUser
+    var user = FirebaseAuth.instance.currentUser
         ?? (await FirebaseAuth.instance.signInAnonymously()).user;
-
-    // Try to get normal token
-    String? token = await user!.getIdToken();
-    if (token != null && token.isNotEmpty) return token;
-
-    // Try to force refresh if token is empty
-    token = await user.getIdToken(true);
-    if (token != null && token.isNotEmpty) return token;
-
-    // Throw error if no token at all
-    throw Exception('Failed to obtain Firebase ID token');
+    if (user == null) throw Exception('no user');
+    final String? token = await user.getIdToken(true); // force get token
+    if (token == null || token.isEmpty) throw Exception('failed to get token');
+    return token; // safe to return, not null here
   }
 
-  // Start session using Firebase function or http fallback
-  Future<({String sessionId, TriageQuestion? question, TriageDiagnosis? diagnosis})>
-  startSession({
+  // safe map cast helper
+  Map<String, dynamic> _asMapSD(dynamic raw) {
+    if (raw is Map<String, dynamic>) return raw;
+    if (raw is Map) {
+      return raw.map((k, v) => MapEntry(k.toString(), v));
+    }
+    throw const FormatException('expected a Map');
+  }
+
+  // safe list cast helper
+  List _asListSD(dynamic raw) => (raw is List) ? raw : const [];
+
+  // normalize answers before sending
+  dynamic _normalizeForWire({
+    required TriageQuestion? questionMeta,
+    required dynamic value,
+  }) {
+    final q = questionMeta;
+    // if number or scale, convert to int within range
+    if (q != null && (q.type == 'number' || q.type == 'scale')) {
+      final n = TriageQuestion.parseNumericAnswer(
+        value,
+        min: q.sliderMin.toInt(),
+        max: q.sliderMax.toInt(),
+      );
+      return n ?? 0;
+    }
+    // if multi select, then always list of strings
+    if (q != null && q.type == 'multi') {
+      final list = _asListSD(value)
+          .map((e) => e?.toString() ?? '')
+          .where((s) => s.isNotEmpty)
+          .toList();
+      return list;
+    }
+    // if single choice, string
+    if (q != null && q.type == 'single') {
+      return value?.toString() ?? '';
+    }
+    // fallback, string
+    return value?.toString() ?? '';
+  }
+
+  // parse start sesssion response
+  ({String sessionId, TriageQuestion? question, TriageDiagnosis? diagnosis}) _parseStart(dynamic raw) {
+    final data = _asMapSD(raw);
+    final sessionId = (data['sessionId'] ??
+        data['session_id'] ??
+        data['id'] ??
+        (data['session'] is Map ? _asMapSD(data['session'])['id'] : null))
+        ?.toString();
+    if (sessionId == null || sessionId.isEmpty) throw const FormatException('missing sessionId');
+    final type = (data['type'] ?? (data['question'] != null ? 'question' : 'diagnosis')).toString();
+    if (type == 'question') {
+      final qMap = _asMapSD(data['question'] ?? data);
+      return (sessionId: sessionId, question: TriageQuestion.fromMap(qMap), diagnosis: null);
+    } else {
+      final dxMap = _asMapSD(data['diagnosis'] ?? data);
+      return (sessionId: sessionId, question: null, diagnosis: TriageDiagnosis.fromMap(dxMap));
+    }
+  }
+
+  // parse step response (after answer)
+  ({TriageQuestion? question, TriageDiagnosis? diagnosis}) _parseStep(dynamic raw) {
+    final data = _asMapSD(raw);
+    final type = (data['type'] ?? (data['question'] != null ? 'question' : 'diagnosis')).toString();
+    if (type == 'question') {
+      final qMap = _asMapSD(data['question'] ?? data);
+      return (question: TriageQuestion.fromMap(qMap), diagnosis: null);
+    } else {
+      final dxMap = _asMapSD(data['diagnosis'] ?? data);
+      return (question: null, diagnosis: TriageDiagnosis.fromMap(dxMap));
+    }
+  }
+
+  // start a new session, using cloud function or fallback
+  Future<({String sessionId, TriageQuestion? question, TriageDiagnosis? diagnosis})> startSession({
     required String localeTag,
     required List<String> selectedAreas,
   }) async {
     try {
       final call = _fns.httpsCallable('startSession');
-      final res = await call.call({
-        'locale': localeTag,
-        'selectedAreas': selectedAreas,
-      });
+      final res = await call.call({'locale': localeTag, 'selectedAreas': selectedAreas});
       return _parseStart(res.data);
     } on FirebaseFunctionsException catch (e) {
       if (_shouldFallbackToHttp(e)) {
         final token = await _getIdToken();
         final uri = Uri.parse('$_httpBase/startSession');
-        final r = await http
-            .post(
-          uri,
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $token',
-          },
-          // Callable http functions expect data inside "data" object
-          body: jsonEncode({
-            'data': {
-              'locale': localeTag,
-              'selectedAreas': selectedAreas,
-            },
-          }),
-        )
+        final r = await http.post(uri, headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        }, body: jsonEncode({'data': {'locale': localeTag, 'selectedAreas': selectedAreas}}))
             .timeout(_httpTimeout);
-
-        if (r.statusCode >= 400) {
-          throw Exception('HTTP ${r.statusCode}: ${r.body}');
-        }
-        final decoded = jsonDecode(r.body) as Map<String, dynamic>;
-        final payload = (decoded['result'] ?? decoded) as Map<String, dynamic>;
+        if (r.statusCode >= 400) throw Exception('HTTP ${r.statusCode}: ${r.body}');
+        final decoded = jsonDecode(r.body);
+        final payload = (decoded is Map && decoded['result'] != null) ? decoded['result'] : decoded;
         return _parseStart(payload);
       }
       rethrow;
     }
   }
 
-  // Post an answer to the server and get next question or diagnosis
+  // send answer, with question meta for normalization
   Future<({TriageQuestion? question, TriageDiagnosis? diagnosis})> postAnswer({
     required String sessionId,
     required String questionId,
     required dynamic value,
+    TriageQuestion? questionMeta,
   }) async {
+    final cleanValue = _normalizeForWire(questionMeta: questionMeta, value: value);
     try {
       final call = _fns.httpsCallable('postAnswer');
       final res = await call.call({
         'sessionId': sessionId,
         'questionId': questionId,
-        'value': value,
+        'value': cleanValue,
       });
       return _parseStep(res.data);
     } on FirebaseFunctionsException catch (e) {
       if (_shouldFallbackToHttp(e)) {
         final token = await _getIdToken();
         final uri = Uri.parse('$_httpBase/postAnswer');
-
-        // Payload when using http
         final payload = {
-          'data': {
-            'sessionId': sessionId,
-            'questionId': questionId,
-            'value': value,
-          },
+          'data': {'sessionId': sessionId, 'questionId': questionId, 'value': cleanValue}
         };
-
-        // Retry a few times if connection is unstable
+        // try several times if error
         const maxAttempts = 3;
         Exception? lastErr;
         for (var attempt = 1; attempt <= maxAttempts; attempt++) {
           try {
-            debugPrint('[postAnswer HTTP attempt $attempt] $payload');
-            final r = await http
-                .post(
-              uri,
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer $token',
-                'Connection': 'close', // helps avoid connection reset
-              },
-              body: jsonEncode(payload),
-            )
-                .timeout(_httpTimeout);
-
-            if (r.statusCode >= 400) {
-              throw Exception('HTTP ${r.statusCode}: ${r.body}');
-            }
-
-            final decoded = jsonDecode(r.body) as Map<String, dynamic>;
-            final result = (decoded['result'] ?? decoded) as Map<String, dynamic>;
+            final r = await http.post(uri, headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'Authorization': 'Bearer $token',
+              'Connection': 'close',
+            }, body: jsonEncode(payload)).timeout(_httpTimeout);
+            if (r.statusCode >= 400) throw Exception('HTTP ${r.statusCode}: ${r.body}');
+            final decoded = jsonDecode(r.body);
+            final result = (decoded is Map && decoded['result'] != null) ? decoded['result'] : decoded;
             return _parseStep(result);
           } catch (err) {
             lastErr = err is Exception ? err : Exception(err.toString());
             if (attempt < maxAttempts) {
               await Future.delayed(Duration(milliseconds: 300 * attempt));
-              continue;
             }
           }
         }
         throw lastErr ?? Exception('HTTP fallback failed');
       }
       rethrow;
-    }
-  }
-
-  // Parse startSession response to get session id, first question or diagnosis
-  ({String sessionId, TriageQuestion? question, TriageDiagnosis? diagnosis})
-  _parseStart(dynamic raw) {
-    debugPrint('[startSession raw] $raw');
-    final data = Map<String, dynamic>.from(raw as Map);
-
-    final sessionId = (data['sessionId'] ??
-        data['session_id'] ??
-        data['id'] ??
-        (data['session'] is Map ? (data['session'] as Map)['id'] : null))
-    as String?;
-
-    if (sessionId == null || sessionId.isEmpty) {
-      throw const FormatException('startSession: missing sessionId in response');
-    }
-
-    final hasQuestionObj = data['question'] != null;
-    final looksInlineQuestion = data['type'] == 'question';
-
-    if (hasQuestionObj || looksInlineQuestion) {
-      final qMap = hasQuestionObj ? data['question'] : data;
-      return (
-      sessionId: sessionId,
-      question: TriageQuestion.fromMap(Map<String, dynamic>.from(qMap as Map)),
-      diagnosis: null,
-      );
-    } else {
-      final dxMap = data['diagnosis'] ?? data;
-      return (
-      sessionId: sessionId,
-      question: null,
-      diagnosis: TriageDiagnosis.fromMap(Map<String, dynamic>.from(dxMap as Map)),
-      );
-    }
-  }
-
-  // Parse postAnswer response to find if it is a question or a diagnosis
-  ({TriageQuestion? question, TriageDiagnosis? diagnosis}) _parseStep(dynamic raw) {
-    debugPrint('[postAnswer raw] $raw');
-    final data = Map<String, dynamic>.from(raw as Map);
-
-    final type =
-    (data['type'] ?? (data['question'] != null ? 'question' : 'diagnosis')) as String;
-
-    if (type == 'question') {
-      final qMap = data['question'] ?? data;
-      return (
-      question: TriageQuestion.fromMap(Map<String, dynamic>.from(qMap as Map)),
-      diagnosis: null,
-      );
-    } else {
-      final dxMap = data['diagnosis'] ?? data;
-      return (
-      question: null,
-      diagnosis: TriageDiagnosis.fromMap(Map<String, dynamic>.from(dxMap as Map)),
-      );
     }
   }
 }

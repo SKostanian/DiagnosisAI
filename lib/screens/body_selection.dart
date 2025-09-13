@@ -3,6 +3,7 @@ import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:diagnosis_ai/app_drawer.dart';
 import 'package:diagnosis_ai/app_colors.dart';
+import 'package:diagnosis_ai/screens/chat_screen.dart';
 
 class BodyPartSelectionScreen extends StatefulWidget {
   final void Function(bool) onThemeChanged;
@@ -204,7 +205,15 @@ class _BodyPartSelectionScreenState extends State<BodyPartSelectionScreen> {
                       : base;
 
                   return ElevatedButton(
-                    onPressed: canContinue ? () {} : null,
+                    onPressed: canContinue
+                        ? () {
+                      Navigator.pushNamed(
+                        context,
+                        TriageChatScreen.routeName,
+                        arguments: TriageChatArgs(selectedKeys.toList()),
+                      );
+                    }
+                    : null,
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
                       backgroundColor: bg,
