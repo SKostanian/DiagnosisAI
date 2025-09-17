@@ -89,7 +89,11 @@ class _TriageChatScreenState extends State<TriageChatScreen> {
         }
       } else if (result.diagnosis != null) {
         _finalDx = result.diagnosis;
-        _bubbles.add(_Bubble.bot(_finalDx!.explanationPatient));
+        // if no empty then display
+        final displayText = _finalDx!.patientText.isNotEmpty
+            ? _finalDx!.patientText
+            : _finalDx!.explanationPatient;
+        _bubbles.add(_Bubble.bot(displayText));
         _scrollToBottom();
       }
     } catch (e) {
@@ -140,7 +144,10 @@ class _TriageChatScreenState extends State<TriageChatScreen> {
       } else {
         _currentQ = null;
         _finalDx = res.diagnosis;
-        _bubbles.add(_Bubble.bot(_finalDx!.explanationPatient));
+        final displayText = _finalDx!.patientText.isNotEmpty
+            ? _finalDx!.patientText
+            : _finalDx!.explanationPatient;
+        _bubbles.add(_Bubble.bot(displayText));
         _scrollToBottom();
       }
     } catch (e) {
