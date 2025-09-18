@@ -23,25 +23,25 @@ Future<void> _configureBackends() async {
   final fns = FirebaseFunctions.instanceFor(region: 'us-central1');
   fns.useFunctionsEmulator(host, 5001);
   FirebaseFirestore.instance.useFirestoreEmulator(host, 8080);
-
-  // in web, a protocol is sometimes required in the host for auth emulator
-  if (kIsWeb) {
-    FirebaseAuth.instance.useAuthEmulator('http://$host', 9099);
-  } else {
-    FirebaseAuth.instance.useAuthEmulator(host, 9099);
-  }
-
-  try {
-    await FirebaseAuth.instance.signInAnonymously();
-  } catch (_) {}
 }
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
+  await _configureBackends();
   await EasyLocalization.ensureInitialized();
 
-  await _configureBackends();
+  // Get a new user with each application run
+  await FirebaseAuth.instance.signOut();
+  final user = (await FirebaseAuth.instance.signInAnonymously()).user;
+
+  // And get an id token print (all for testing purposes)
+  if (user != null) {
+    final idToken = await user.getIdToken(true);
+    print("Firebase ID Token: $idToken");
+  } else {
+    print("FirebaseAuth signInAnonymously failed");
+  }
 
   runApp(
     EasyLocalization(
