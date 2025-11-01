@@ -1,17 +1,24 @@
 {
   "compilerOptions": {
+    "target": "ES2020",
     "module": "NodeNext",
-    "esModuleInterop": true,
-    "moduleResolution": "nodenext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2020"],
+    "types": ["node"],
+
+    "outDir": "lib",
+    "rootDir": "src",
+    "sourceMap": true,
+
+    "strict": true,
     "noImplicitReturns": true,
     "noUnusedLocals": true,
-    "outDir": "lib",
-    "sourceMap": true,
-    "strict": true,
-    "target": "es2017"
+    "skipLibCheck": true,
+
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true
   },
-  "compileOnSave": true,
-  "include": [
-    "src"
-  ]
+
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules"]
 }
