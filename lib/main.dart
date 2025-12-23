@@ -35,12 +35,12 @@ Future<void> main() async {
   await FirebaseAuth.instance.signOut();
   final user = (await FirebaseAuth.instance.signInAnonymously()).user;
 
-  // And get an id token print (all for testing purposes)
-  if (user != null) {
+  // Get ID token for authentication (debug mode only)
+  if (user != null && kDebugMode) {
     final idToken = await user.getIdToken(true);
-    print("Firebase ID Token: $idToken");
-  } else {
-    print("FirebaseAuth signInAnonymously failed");
+    debugPrint("Firebase ID Token: $idToken");
+  } else if (user == null && kDebugMode) {
+    debugPrint("FirebaseAuth signInAnonymously failed");
   }
 
   runApp(
@@ -105,7 +105,7 @@ class _HealthAssistantAppState extends State<HealthAssistantApp> {
         '/body_selection': (context) => BodyPartSelectionScreen(onThemeChanged: _toggleTheme),
         '/email-register': (context) =>
             EmailRegisterScreen(isDarkMode: _themeMode == ThemeMode.dark, onThemeChanged: _toggleTheme),
-        '/email-sign_in': (context) =>
+        '/email-sign-in': (context) =>
             EmailSignInScreen(isDarkMode: _themeMode == ThemeMode.dark, onThemeChanged: _toggleTheme),
         '/phone-sign_in': (context) =>
             PhoneSignInScreen(isDarkMode: _themeMode == ThemeMode.dark, onThemeChanged: _toggleTheme),

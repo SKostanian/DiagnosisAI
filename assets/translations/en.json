@@ -14,7 +14,7 @@
     "skip_registration": "Skip registration",
 
     "dialog_are_you_sure": "Are you sure?",
-    "dialog_not_saved": "Your progress won't be saved.",
+    "dialog_not_saved": "Data cannot be restored on another device.",
     "no": "No",
     "yes": "Yes",
     "welcome": "Welcome!",
@@ -131,5 +131,12 @@
   "menu": {
     "home": "Home",
     "chat": "AI Chat"
+  },
+  "triage": {
+    "finish_now": "Finish now",
+    "not_ready_title": "Not ready",
+    "not_ready_body": "Please answer more questions. The diagnosis is not ready yet.",
+    "ok": "OK",
+    "title": "Triage"
   }
 }

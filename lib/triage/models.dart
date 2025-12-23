@@ -4,7 +4,7 @@ class TriageQuestion {
   final String type; // single or multi | number | text type or owthers
   final String topic; // quality | severity | duration
   final List<String> options; // for single/multi
-  final String? unit; // 0-10 for number/scale questions
+  final String? unit; // 1-10 for number/scale questions
 
   TriageQuestion({
     required this.id,
@@ -50,12 +50,12 @@ class TriageQuestion {
   // UI convenience
   bool get isChoice => type == 'single';
   bool get isMulti  => type == 'multi';
-  bool get isScaleLike => type == 'scale' || (type == 'number' && (unit?.contains('0-10') ?? false));
+  bool get isScaleLike => type == 'scale' || (type == 'number' && RegExp(r'\d+\s*-\s*\d+').hasMatch(unit ?? ''));
 
   // Min/max for slider
   double get sliderMin {
     final r = _extractRange(unit);
-    return (r?.$1 ?? 0).toDouble();
+    return (r?.$1 ?? 1).toDouble();
   }
 
   double get sliderMax {
@@ -64,7 +64,7 @@ class TriageQuestion {
   }
 
   static (int, int)? _extractRange(String? u) {
-    if (u == null) return (0, 10);
+    if (u == null) return (1, 10);
     final s = u.replaceAll('—', '-').replaceAll('..', '-');
     final m = RegExp(r'(-?\d+)\s*-\s*(-?\d+)').firstMatch(s);
     if (m != null) {
@@ -74,11 +74,11 @@ class TriageQuestion {
         return (a, b);
       }
     }
-    return (0, 10);
+    return (1, 10);
   }
 
   // parse user type into number
-  static int? parseNumericAnswer(dynamic v, {int min = 0, int max = 10}) {
+  static int? parseNumericAnswer(dynamic v, {int min = 1, int max = 10}) {
     if (v is num) {
       final n = v.round();
       return n.clamp(min, max);

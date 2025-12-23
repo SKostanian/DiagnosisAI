@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:diagnosis_ai/app_colors.dart';
+import 'package:diagnosis_ai/services/auth_service.dart';
 
 class AppDrawer extends StatelessWidget {
   final String selectedLanguage;
@@ -75,8 +76,22 @@ class AppDrawer extends StatelessWidget {
             'menu.chat'.tr(),
             isDark,
             onTap: () {
-
-
+              Navigator.of(context).pop();
+              Navigator.of(context).pushNamed('/body_selection');
+            }
+          ),
+          const Divider(height: 1),
+          _buildTile(
+            context,
+            Icons.logout,
+            'auth.sign_out'.tr(),
+            isDark,
+            onTap: () async {
+              await AuthService().signOutAll();
+              Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('auth.signed_out'.tr())),
+              );
             },
           ),
           Padding(
