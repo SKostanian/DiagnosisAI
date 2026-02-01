@@ -1,20 +1,26 @@
 import 'dart:async';
 import 'dart:io' show Platform;
-import 'package:flutter/material.dart';
+
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:diagnosis_ai/services/auth_service.dart';
-import 'package:diagnosis_ai/screens/verify_email.dart';
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:easy_localization/easy_localization.dart';
+
 import 'package:diagnosis_ai/app_colors.dart';
 import 'package:diagnosis_ai/app_drawer.dart';
-import 'package:easy_localization/easy_localization.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:diagnosis_ai/screens/verify_email.dart';
+import 'package:diagnosis_ai/services/auth_service.dart';
 
-// UI model to show sign in google account
 class GoogleAccountUi {
   final String? displayName;
   final String email;
   final String? photoUrl;
-  GoogleAccountUi({this.displayName, required this.email, this.photoUrl});
+
+  GoogleAccountUi({
+    this.displayName,
+    required this.email,
+    this.photoUrl,
+  });
 }
 
 class AuthScreen extends StatefulWidget {
@@ -26,27 +32,72 @@ class AuthScreen extends StatefulWidget {
     required this.onSkip,
     required this.isDarkMode,
     required this.onThemeChanged,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
   State<AuthScreen> createState() => _AuthScreenState();
 }
 
 class _AuthScreenState extends State<AuthScreen> {
+  // consent
   bool _consentAccepted = false;
   bool _isShowingConsent = false;
+
+  // auth state
   GoogleAccountUi? _googleInfo;
   StreamSubscription<User?>? _authSub;
-
-  // firebase user
   User? _authUser;
   bool _canShowAccount = false;
+
+  // TEST: set true if you want to always reset consent on every app start
+  static const bool _debugAlwaysResetConsent = true;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _boot();
+  }
+
+  Future<void> _boot() async {
+    if (_debugAlwaysResetConsent) {
+      await _debugResetConsent();
+    }
+
+    await _initConsent();
+
+    _applyUser(AuthService().currentUser);
+    _authSub = AuthService().userChanges.listen((u) {
+      if (!mounted) return;
+      setState(() => _applyUser(u));
+    });
+  }
+
+  @override
+  void dispose() {
+    _authSub?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _debugResetConsent() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('consentAccepted');
+    if (!mounted) return;
+    setState(() => _consentAccepted = false);
+  }
+
+  Future<void> _initConsent() async {
+    final prefs = await SharedPreferences.getInstance();
+    final accepted = prefs.getBool('consentAccepted') ?? false;
+
+    if (!mounted) return;
+    setState(() => _consentAccepted = accepted);
+  }
 
   void _applyUser(User? u) {
     _authUser = u;
 
-    // if no user then every variable is false
     if (u == null) {
       _googleInfo = null;
       _canShowAccount = false;
@@ -62,7 +113,6 @@ class _AuthScreenState extends State<AuthScreen> {
     _canShowAccount = AuthService().shouldShowAccountHeader(u);
   }
 
-  // banner if user signed in, but email not verified
   bool get _showUnverifiedBanner {
     final u = _authUser;
     if (u == null) return false;
@@ -70,58 +120,83 @@ class _AuthScreenState extends State<AuthScreen> {
     return !AuthService().shouldShowAccountHeader(u) && providers.contains('password');
   }
 
-  // navigation to verify screen
+  Future<bool> _ensureConsent() async {
+    final prefs = await SharedPreferences.getInstance();
+    final acceptedNow = prefs.getBool('consentAccepted') ?? false;
+
+    if (!mounted) return false;
+
+    if (acceptedNow) {
+      if (!_consentAccepted) setState(() => _consentAccepted = true);
+      return true;
+    }
+
+    if (_isShowingConsent) return false;
+
+    _isShowingConsent = true;
+    try {
+      final accepted = await showModalBottomSheet<bool>(
+        context: context,
+        useRootNavigator: true,
+        isScrollControlled: true,
+        backgroundColor: widget.isDarkMode ? const Color(0xFF1C1C1E) : Colors.white,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        builder: (sheetCtx) => _ConsentSheet(
+          isDark: widget.isDarkMode,
+          onOpenPrivacy: () => Navigator.pushNamed(context, '/privacy'),
+          onOpenTerms: () => Navigator.pushNamed(context, '/terms'),
+          onOpenDisclaimer: () => Navigator.pushNamed(context, '/disclaimer'),
+        ),
+      );
+
+      if (accepted == true) {
+        await prefs.setBool('consentAccepted', true);
+        if (!mounted) return false;
+        setState(() => _consentAccepted = true);
+        return true;
+      }
+
+      return false;
+    } catch (e, st) {
+      // TEST: show error (so you can see if it fails silently)
+      debugPrint('CONSENT SHOW ERROR: $e');
+      debugPrint('$st');
+      if (!mounted) return false;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Consent error: $e')),
+      );
+      return false;
+    } finally {
+      _isShowingConsent = false;
+    }
+  }
+
   Future<void> _goToVerify() async {
     final u = FirebaseAuth.instance.currentUser;
     if (u == null) return;
 
-    if (!(u.emailVerified)) {
-      try { await u.sendEmailVerification(); } catch (_) {}
+    if (!u.emailVerified) {
+      try {
+        await u.sendEmailVerification();
+      } catch (_) {}
     }
 
     if (!mounted) return;
     Navigator.of(context).push(
       MaterialPageRoute(
-        // navigate to verify screen
         builder: (_) => VerifyEmailScreen(
           isDarkMode: widget.isDarkMode,
           onThemeChanged: widget.onThemeChanged,
-          // if verified, then go to body selection screen
           nextRouteName: '/body_selection',
         ),
       ),
     );
   }
 
-  @override
-  void initState() {
-    super.initState();
-
-    _loadConsent();
-
-    // apply user if already signed
-    _applyUser(AuthService().currentUser);
-    _authSub = AuthService().userChanges.listen((u) {
-      if (!mounted) return;
-      setState(() => _applyUser(u));
-    });
-  }
-
-  @override
-  void dispose() {
-    _authSub?.cancel();
-    super.dispose();
-  }
-
-  Future<void> _loadConsent() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _consentAccepted = prefs.getBool('consentAccepted') ?? false;
-    });
-  }
-
   Future<void> _showSkipDialog(BuildContext context) async {
-    showDialog(
+    return showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text('auth.dialog_are_you_sure'.tr()),
@@ -131,65 +206,90 @@ class _AuthScreenState extends State<AuthScreen> {
         ),
         actions: [
           TextButton(
-            child: Text('auth.no'.tr()),
             onPressed: () => Navigator.of(ctx).pop(),
+            child: Text('auth.no'.tr()),
           ),
           TextButton(
-            child: Text('auth.yes'.tr()),
             onPressed: () {
               Navigator.of(ctx).pop();
               widget.onSkip();
             },
+            child: Text('auth.yes'.tr()),
           ),
         ],
       ),
     );
   }
 
-  // google sign in
   Future<void> _handleContinueWithGoogle() async {
-    await _requireConsentIfNeeded();
-    if (!_consentAccepted) return;
+    final ok = await _ensureConsent();
+    debugPrint('CONSENT RESULT (Google): $ok');
+    if (!ok) return;
 
     final user = await AuthService().signInWithGoogle();
+    if (!mounted) return;
 
-    if (user != null) {
-      if (!mounted) return;
-      // welcome screen, transition
-      showDialog(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: Text('auth.welcome'.tr()),
-          content: Text(
-            '${'auth.signed_in_as'.tr()} ${user.displayName ?? user.email}',
-            style: Theme.of(ctx).textTheme.bodyMedium?.copyWith(fontSize: 18),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(ctx).pop();
-                widget.onSkip();
-              },
-              child: Text(
-                'auth.continue'.tr(),
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-              ),
-            ),
-          ],
-        ),
-      );
-    } else {
-      if (!mounted) return;
+    if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("auth.google_failed".tr())),
+        SnackBar(content: Text('auth.google_failed'.tr())),
       );
+      return;
     }
+
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('auth.welcome'.tr()),
+        content: Text(
+          '${'auth.signed_in_as'.tr()} ${user.displayName ?? user.email}',
+          style: Theme.of(ctx).textTheme.bodyMedium?.copyWith(fontSize: 18),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              widget.onSkip();
+            },
+            child: Text(
+              'auth.continue'.tr(),
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _handleSignInEmailPhone() async {
+    final ok = await _ensureConsent();
+    debugPrint('CONSENT RESULT (Email/Phone): $ok');
+    if (!ok) return;
+
+    _openEmailPhoneSheet(context, isDark: widget.isDarkMode);
+  }
+
+  Future<void> _handleSkip() async {
+    final ok = await _ensureConsent();
+    debugPrint('CONSENT RESULT (Skip): $ok');
+    if (!ok) return;
+
+    await _showSkipDialog(context);
+  }
+
+  Future<void> _handleTestConsentButton() async {
+    final ok = await _ensureConsent();
+    debugPrint('CONSENT RESULT (TEST BUTTON): $ok');
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('TEST consent result: $ok')),
+    );
   }
 
   Future<String?> _showAccountMenuSheet() {
     final isDark = widget.isDarkMode;
     return showModalBottomSheet<String>(
       context: context,
+      useRootNavigator: true,
       backgroundColor: isDark ? const Color(0xFF1C1C1E) : Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
@@ -205,21 +305,29 @@ class _AuthScreenState extends State<AuthScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  width: 42, height: 4,
-                  decoration: BoxDecoration(color: divider, borderRadius: BorderRadius.circular(2)),
+                  width: 42,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: divider,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
                 const SizedBox(height: 12),
                 if (_googleInfo != null)
-                ListTile(
-                  leading: const Icon(Icons.switch_account),
-                  title: Text('auth.google_use_another'.tr(),
-                      style: TextStyle(color: textColor, fontWeight: FontWeight.w600)),
-                  onTap: () => Navigator.pop(ctx, 'switch'),
-                ),
+                  ListTile(
+                    leading: const Icon(Icons.switch_account),
+                    title: Text(
+                      'auth.google_use_another'.tr(),
+                      style: TextStyle(color: textColor, fontWeight: FontWeight.w600),
+                    ),
+                    onTap: () => Navigator.pop(ctx, 'switch'),
+                  ),
                 ListTile(
                   leading: const Icon(Icons.logout),
-                  title: Text('auth.sign_out'.tr(),
-                      style: TextStyle(color: textColor, fontWeight: FontWeight.w600)),
+                  title: Text(
+                    'auth.sign_out'.tr(),
+                    style: TextStyle(color: textColor, fontWeight: FontWeight.w600),
+                  ),
                   onTap: () => Navigator.pop(ctx, 'signout'),
                 ),
                 const SizedBox(height: 4),
@@ -238,7 +346,7 @@ class _AuthScreenState extends State<AuthScreen> {
     if (choice == 'signout') {
       await AuthService().signOutAll();
       if (!mounted) return;
-      // reset
+
       setState(() => _applyUser(null));
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('auth.signed_out'.tr())),
@@ -249,8 +357,8 @@ class _AuthScreenState extends State<AuthScreen> {
     if (choice == 'switch') {
       final user = await AuthService().signInWithGoogle(forceChooseAccount: true);
       if (!mounted) return;
+
       if (user != null) {
-        // new user
         setState(() => _applyUser(user));
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('auth.switched_account'.tr())),
@@ -263,152 +371,6 @@ class _AuthScreenState extends State<AuthScreen> {
     }
   }
 
-  // consent flow
-  Future<void> _requireConsentIfNeeded() async {
-    if (_consentAccepted || _isShowingConsent) return;
-
-    _isShowingConsent = true;
-    final accepted = await _showConsentSheet(context, isDark: widget.isDarkMode);
-    _isShowingConsent = false;
-
-    // if user accepted, save in SharedPreferences and update state
-    if (accepted == true) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('consentAccepted', true);
-      if (!mounted) return;
-      setState(() => _consentAccepted = true);
-    }
-  }
-
-  Future<bool?> _showConsentSheet(BuildContext context, {required bool isDark}) {
-    bool localChecked = false;
-
-    return showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: isDark ? const Color(0xFF1C1C1E) : Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) {
-        final textColor = isDark ? Colors.white : Colors.black87;
-        final divider = isDark ? Colors.white24 : Colors.black26;
-
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-            child: StatefulBuilder(
-              builder: (ctx, setModalState) {
-                return Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 42, height: 4,
-                      decoration: BoxDecoration(color: divider, borderRadius: BorderRadius.circular(2)),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'consent.title'.tr(),
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: textColor),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 8),
-                    Divider(color: divider, height: 1),
-                    const SizedBox(height: 8),
-
-                    ConstrainedBox(
-                      constraints: const BoxConstraints(maxHeight: 380),
-                      child: SingleChildScrollView(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'consent.description'.tr(),
-                              style: TextStyle(color: textColor, fontSize: 14, height: 1.4),
-                            ),
-                            const SizedBox(height: 12),
-                            Wrap(
-                              spacing: 12,
-                              runSpacing: 8,
-                              children: [
-                                _LinkText(
-                                  label: 'consent.privacy_policy'.tr(),
-                                  onTap: () => Navigator.pushNamed(context, '/privacy'),
-                                  color: isDark ? const Color(0xFF7CCFFF) : const Color(0xFF024EE1),
-                                ),
-                                _LinkText(
-                                  label: 'consent.terms_of_use'.tr(),
-                                  onTap: () => Navigator.pushNamed(context, '/terms'),
-                                  color: isDark ? const Color(0xFF7CCFFF) : const Color(0xFF024EE1),
-                                ),
-                                _LinkText(
-                                  label: 'consent.medical_disclaimer'.tr(),
-                                  onTap: () => Navigator.pushNamed(context, '/disclaimer'),
-                                  color: isDark ? const Color(0xFF7CCFFF) : const Color(0xFF024EE1),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 12),
-                    Divider(color: divider, height: 1),
-                    const SizedBox(height: 8),
-
-                    CheckboxListTile(
-                      value: localChecked,
-                      onChanged: (v) => setModalState(() => localChecked = v ?? false),
-                      controlAffinity: ListTileControlAffinity.leading,
-                      activeColor: isDark ? const Color(0xFF3579FD) : const Color(0xFF024EE1),
-                      title: Text('consent.accept_checkbox'.tr(), style: TextStyle(color: textColor)),
-                    ),
-
-                    const SizedBox(height: 8),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: ElevatedButton(
-                        onPressed: localChecked ? () => Navigator.of(ctx).pop(true) : null,
-                        style: ElevatedButton.styleFrom(
-                          shape: const StadiumBorder(),
-                          backgroundColor: isDark ? AppColors.darkAccent : AppColors.lightPrimary,
-                          foregroundColor: Colors.white,
-                          disabledBackgroundColor: isDark ? Colors.white12 : Colors.black12,
-                          elevation: 2,
-                        ),
-                        child: Text('consent.accept_button'.tr(), style: const TextStyle(fontWeight: FontWeight.w700)),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextButton(
-                      onPressed: () => Navigator.of(ctx).pop(false),
-                      child: Text('consent.decline'.tr(), style: const TextStyle(color: Colors.redAccent)),
-                    ),
-                  ],
-                );
-              },
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Future<void> _handleSignInEmailPhone() async {
-    await _requireConsentIfNeeded();
-    if (!_consentAccepted) return;
-    _openEmailPhoneSheet(context, isDark: widget.isDarkMode);
-  }
-
-  Future<void> _handleSkip() async {
-    await _requireConsentIfNeeded();
-    if (!_consentAccepted) return;
-    _showSkipDialog(context);
-  }
-
-  // ui help widget
   Widget _buildOAuthButton({
     required String label,
     required String assetPath,
@@ -420,6 +382,9 @@ class _AuthScreenState extends State<AuthScreen> {
     double iconSize = 24,
     double borderWidth = 1,
   }) {
+    final resolvedBg = background ?? (isDark ? const Color(0xFF2C2C2E) : Colors.white);
+    final resolvedFg = foreground ?? (isDark ? Colors.white : Colors.black87);
+
     return SizedBox(
       width: double.infinity,
       height: height,
@@ -427,8 +392,8 @@ class _AuthScreenState extends State<AuthScreen> {
         onPressed: onTap,
         style: ElevatedButton.styleFrom(
           elevation: 3,
-          backgroundColor: background ?? (isDark ? const Color(0xFF2C2C2E) : Colors.white),
-          foregroundColor: foreground ?? (isDark ? Colors.white : Colors.black87),
+          backgroundColor: resolvedBg,
+          foregroundColor: resolvedFg,
           shape: const StadiumBorder(),
           side: BorderSide(
             color: isDark ? Colors.white12 : Colors.black12,
@@ -445,7 +410,7 @@ class _AuthScreenState extends State<AuthScreen> {
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
-                color: foreground ?? (isDark ? Colors.white : Colors.black87),
+                color: resolvedFg,
               ),
             ),
           ],
@@ -455,8 +420,9 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   void _openEmailPhoneSheet(BuildContext context, {required bool isDark}) {
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: false,
       backgroundColor: isDark ? const Color(0xFF1C1C1E) : Colors.white,
       shape: const RoundedRectangleBorder(
@@ -490,7 +456,10 @@ class _AuthScreenState extends State<AuthScreen> {
                 width: double.infinity,
                 height: 52,
                 child: OutlinedButton(
-                  onPressed: () => _signInWithEmail(context),
+                  onPressed: () {
+                    Navigator.of(ctx).pop();
+                    _signInWithEmail(context);
+                  },
                   style: OutlinedButton.styleFrom(
                     shape: const StadiumBorder(),
                     side: BorderSide(color: isDark ? Colors.white24 : Colors.black26),
@@ -506,7 +475,10 @@ class _AuthScreenState extends State<AuthScreen> {
                 width: double.infinity,
                 height: 52,
                 child: OutlinedButton(
-                  onPressed: () => _signInWithPhone(context),
+                  onPressed: () {
+                    Navigator.of(ctx).pop();
+                    _signInWithPhone(context);
+                  },
                   style: OutlinedButton.styleFrom(
                     shape: const StadiumBorder(),
                     side: BorderSide(color: isDark ? Colors.white24 : Colors.black26),
@@ -524,7 +496,6 @@ class _AuthScreenState extends State<AuthScreen> {
     );
   }
 
-  // 2 other options, sign in with email and phone
   void _signInWithEmail(BuildContext context) {
     Navigator.pushNamed(context, '/email-register');
   }
@@ -552,15 +523,14 @@ class _AuthScreenState extends State<AuthScreen> {
     return Scaffold(
       extendBodyBehindAppBar: true,
       endDrawer: AppDrawer(
-        selectedLanguage: context.locale.languageCode, // 'en', 'ru', 'el'
-        onLanguageChanged: (lang) {
-          setState(() {});
-        },
+        selectedLanguage: context.locale.languageCode,
+        onLanguageChanged: (_) => setState(() {}),
       ),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
+        leadingWidth: 72,
         leading: Padding(
           padding: const EdgeInsets.only(left: 12.0),
           child: Switch(
@@ -570,7 +540,6 @@ class _AuthScreenState extends State<AuthScreen> {
             inactiveThumbColor: AppColors.lightPrimary,
           ),
         ),
-
         title: (_canShowAccount && _googleInfo != null)
             ? InkWell(
           onTap: _onAvatarTap,
@@ -580,10 +549,10 @@ class _AuthScreenState extends State<AuthScreen> {
             children: [
               CircleAvatar(
                 radius: 20,
-                backgroundImage: _googleInfo!.photoUrl != null
+                backgroundImage: (_googleInfo!.photoUrl != null && _googleInfo!.photoUrl!.isNotEmpty)
                     ? NetworkImage(_googleInfo!.photoUrl!)
                     : null,
-                child: _googleInfo!.photoUrl == null
+                child: (_googleInfo!.photoUrl == null || _googleInfo!.photoUrl!.isEmpty)
                     ? const Icon(Icons.person, size: 24)
                     : null,
               ),
@@ -591,7 +560,9 @@ class _AuthScreenState extends State<AuthScreen> {
               ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 200),
                 child: Text(
-                  _googleInfo!.displayName ?? _googleInfo!.email,
+                  (_googleInfo!.displayName?.trim().isNotEmpty ?? false)
+                      ? _googleInfo!.displayName!.trim()
+                      : _googleInfo!.email,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: 18,
@@ -604,14 +575,14 @@ class _AuthScreenState extends State<AuthScreen> {
           ),
         )
             : null,
-
         actions: [
           Builder(
-            builder: (context) => Padding(
+            builder: (ctx) => Padding(
               padding: const EdgeInsets.only(right: 12.0),
-              child: GestureDetector(
-                onTap: () => Scaffold.of(context).openEndDrawer(),
-                child: Container(
+              child: InkWell(
+                onTap: () => Scaffold.of(ctx).openEndDrawer(),
+                borderRadius: BorderRadius.circular(21),
+                child: Ink(
                   width: 42,
                   height: 42,
                   decoration: BoxDecoration(
@@ -636,7 +607,6 @@ class _AuthScreenState extends State<AuthScreen> {
           ),
         ],
       ),
-
       body: Stack(
         children: [
           Container(decoration: BoxDecoration(gradient: gradient)),
@@ -658,12 +628,11 @@ class _AuthScreenState extends State<AuthScreen> {
                 final screenWidth = constraints.maxWidth;
                 final buttonsMaxWidth = screenWidth * 0.84;
 
-                // banner for screen
                 final double bannerFont = screenWidth < 360 ? 13.5 : 14.5;
                 final double bannerCtaFont = bannerFont + 1;
 
-                final Color verifyBg = widget.isDarkMode ? Colors.white : AppColors.lightPrimary;
-                final Color verifyFg = widget.isDarkMode ? Colors.black87 : Colors.white;
+                final Color verifyBg = isDarkMode ? Colors.white : AppColors.lightPrimary;
+                final Color verifyFg = isDarkMode ? Colors.black87 : Colors.white;
 
                 return SingleChildScrollView(
                   child: ConstrainedBox(
@@ -671,16 +640,46 @@ class _AuthScreenState extends State<AuthScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        // TEST BUTTON (always visible)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                          child: SizedBox(
+                            width: double.infinity,
+                            height: 48,
+                            child: OutlinedButton(
+                              onPressed: _handleTestConsentButton,
+                              child: Text(
+                                'TEST CONSENT (tap me)',
+                                style: TextStyle(
+                                  color: isDarkMode ? Colors.white : Colors.black87,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                          child: Text(
+                            'consentAccepted=$_consentAccepted, isShowing=$_isShowingConsent',
+                            style: TextStyle(
+                              color: isDarkMode ? Colors.white70 : Colors.black54,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+
                         if (_showUnverifiedBanner)
                           Padding(
                             padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
                             child: Container(
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: (widget.isDarkMode ? AppColors.darkAccent : AppColors.lightPrimary).withOpacity(0.10),
+                                color: (isDarkMode ? AppColors.darkAccent : AppColors.lightPrimary).withOpacity(0.10),
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
-                                  color: widget.isDarkMode ? Colors.white24 : AppColors.lightPrimary,
+                                  color: isDarkMode ? Colors.white24 : AppColors.lightPrimary,
                                   width: 1.2,
                                 ),
                               ),
@@ -690,15 +689,15 @@ class _AuthScreenState extends State<AuthScreen> {
                                   Icon(
                                     Icons.info_outline,
                                     size: 20,
-                                    color: widget.isDarkMode ? Colors.white70 : AppColors.lightPrimary,
+                                    color: isDarkMode ? Colors.white70 : AppColors.lightPrimary,
                                   ),
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: Text(
                                       'auth.email_unverified_banner'.tr(),
                                       style: TextStyle(
-                                        color: widget.isDarkMode ? Colors.white : Colors.black87,
-                                        fontSize: bannerFont, // <-- используй адаптив
+                                        color: isDarkMode ? Colors.white : Colors.black87,
+                                        fontSize: bannerFont,
                                         fontWeight: FontWeight.w600,
                                         height: 1.25,
                                       ),
@@ -709,15 +708,15 @@ class _AuthScreenState extends State<AuthScreen> {
                                     onPressed: _goToVerify,
                                     style: ElevatedButton.styleFrom(
                                       elevation: 0,
-                                      backgroundColor: verifyBg,      // <-- контрастный фон
-                                      foregroundColor: verifyFg,      // <-- контрастный текст
+                                      backgroundColor: verifyBg,
+                                      foregroundColor: verifyFg,
                                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                       shape: const StadiumBorder(),
                                     ),
                                     child: Text(
                                       'auth.verify_now'.tr(),
                                       style: TextStyle(
-                                        fontSize: bannerCtaFont,      // <-- размер для кнопки
+                                        fontSize: bannerCtaFont,
                                         fontWeight: FontWeight.w700,
                                       ),
                                     ),
@@ -730,34 +729,26 @@ class _AuthScreenState extends State<AuthScreen> {
                         SizedBox(height: screenHeight * 0.008),
                         Image.asset(
                           'assets/logo.png',
-                          height: screenHeight * 0.45,
+                          height: screenHeight * 0.42,
                           width: screenWidth * 1.5,
                           fit: BoxFit.contain,
                         ),
+
                         Padding(
                           padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.06),
-                          child: RichText(
+                          child: Text(
+                            'Auth Screen (TEST)',
                             textAlign: TextAlign.center,
-                            text: TextSpan(
-                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                fontSize: screenHeight * 0.028,
-                                color: isDarkMode ? Colors.white : Colors.black87,
-                              ),
-                              children: [
-                                TextSpan(text: 'auth.title_part1'.tr()),
-                                TextSpan(
-                                  text: 'auth.title_highlight'.tr(),
-                                  style: TextStyle(
-                                    color: isDarkMode ? AppColors.darkAccent : AppColors.lightPrimary,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                                TextSpan(text: 'auth.title_part2'.tr()),
-                              ],
+                            style: TextStyle(
+                              fontSize: screenHeight * 0.028,
+                              color: isDarkMode ? Colors.white : Colors.black87,
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
                         ),
-                        SizedBox(height: screenHeight * 0.035),
+
+                        SizedBox(height: screenHeight * 0.02),
+
                         ConstrainedBox(
                           constraints: BoxConstraints(maxWidth: buttonsMaxWidth),
                           child: Column(
@@ -776,9 +767,10 @@ class _AuthScreenState extends State<AuthScreen> {
                                   label: 'auth.continue_apple'.tr(),
                                   assetPath: 'assets/apple_logo_white.png',
                                   onTap: () async {
-                                    await _requireConsentIfNeeded();
-                                    if (!_consentAccepted) return;
-                                    // sign in with apple will come soon
+                                    final ok = await _ensureConsent();
+                                    debugPrint('CONSENT RESULT (Apple): $ok');
+                                    if (!ok) return;
+                                    // sign in apple
                                   },
                                   isDark: true,
                                   background: const Color(0xFF000000),
@@ -831,7 +823,9 @@ class _AuthScreenState extends State<AuthScreen> {
                             ],
                           ),
                         ),
+
                         SizedBox(height: screenHeight * 0.02),
+
                         Padding(
                           padding: const EdgeInsets.only(top: 8.0, bottom: 24),
                           child: TextButton(
@@ -859,11 +853,140 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 }
 
+class _ConsentSheet extends StatefulWidget {
+  final bool isDark;
+  final VoidCallback onOpenPrivacy;
+  final VoidCallback onOpenTerms;
+  final VoidCallback onOpenDisclaimer;
+
+  const _ConsentSheet({
+    required this.isDark,
+    required this.onOpenPrivacy,
+    required this.onOpenTerms,
+    required this.onOpenDisclaimer,
+  });
+
+  @override
+  State<_ConsentSheet> createState() => _ConsentSheetState();
+}
+
+class _ConsentSheetState extends State<_ConsentSheet> {
+  bool checked = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final textColor = widget.isDark ? Colors.white : Colors.black87;
+    final divider = widget.isDark ? Colors.white24 : Colors.black26;
+    final linkColor = widget.isDark ? const Color(0xFF7CCFFF) : const Color(0xFF024EE1);
+
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 42,
+              height: 4,
+              decoration: BoxDecoration(
+                color: divider,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'consent.title'.tr(),
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: textColor,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Divider(color: divider, height: 1),
+            const SizedBox(height: 8),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 380),
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'consent.description'.tr(),
+                      style: TextStyle(color: textColor, fontSize: 14, height: 1.4),
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 8,
+                      children: [
+                        _LinkText(
+                          label: 'consent.privacy_policy'.tr(),
+                          onTap: widget.onOpenPrivacy,
+                          color: linkColor,
+                        ),
+                        _LinkText(
+                          label: 'consent.terms_of_use'.tr(),
+                          onTap: widget.onOpenTerms,
+                          color: linkColor,
+                        ),
+                        _LinkText(
+                          label: 'consent.medical_disclaimer'.tr(),
+                          onTap: widget.onOpenDisclaimer,
+                          color: linkColor,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Divider(color: divider, height: 1),
+            CheckboxListTile(
+              value: checked,
+              onChanged: (v) => setState(() => checked = v ?? false),
+              controlAffinity: ListTileControlAffinity.leading,
+              title: Text(
+                'consent.accept_checkbox'.tr(),
+                style: TextStyle(color: textColor),
+              ),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton(
+                onPressed: checked ? () => Navigator.of(context).pop(true) : null,
+                style: ElevatedButton.styleFrom(shape: const StadiumBorder()),
+                child: Text('consent.accept_button'.tr()),
+              ),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text(
+                'consent.decline'.tr(),
+                style: const TextStyle(color: Colors.redAccent),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _LinkText extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
   final Color color;
-  const _LinkText({required this.label, required this.onTap, required this.color, Key? key}) : super(key: key);
+
+  const _LinkText({
+    required this.label,
+    required this.onTap,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
