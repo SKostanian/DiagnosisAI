@@ -50,22 +50,11 @@ class _AuthScreenState extends State<AuthScreen> {
   User? _authUser;
   bool _canShowAccount = false;
 
-  // TEST: set true if you want to always reset consent on every app start
-  static const bool _debugAlwaysResetConsent = true;
-
   @override
   void initState() {
     super.initState();
 
-    _boot();
-  }
-
-  Future<void> _boot() async {
-    if (_debugAlwaysResetConsent) {
-      await _debugResetConsent();
-    }
-
-    await _initConsent();
+    _initConsent();
 
     _applyUser(AuthService().currentUser);
     _authSub = AuthService().userChanges.listen((u) {
@@ -78,13 +67,6 @@ class _AuthScreenState extends State<AuthScreen> {
   void dispose() {
     _authSub?.cancel();
     super.dispose();
-  }
-
-  Future<void> _debugResetConsent() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('consentAccepted');
-    if (!mounted) return;
-    setState(() => _consentAccepted = false);
   }
 
   Future<void> _initConsent() async {
@@ -143,7 +125,7 @@ class _AuthScreenState extends State<AuthScreen> {
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
-        builder: (sheetCtx) => _ConsentSheet(
+        builder: (_) => _ConsentSheet(
           isDark: widget.isDarkMode,
           onOpenPrivacy: () => Navigator.pushNamed(context, '/privacy'),
           onOpenTerms: () => Navigator.pushNamed(context, '/terms'),
@@ -158,15 +140,6 @@ class _AuthScreenState extends State<AuthScreen> {
         return true;
       }
 
-      return false;
-    } catch (e, st) {
-      // TEST: show error (so you can see if it fails silently)
-      debugPrint('CONSENT SHOW ERROR: $e');
-      debugPrint('$st');
-      if (!mounted) return false;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Consent error: $e')),
-      );
       return false;
     } finally {
       _isShowingConsent = false;
@@ -223,7 +196,6 @@ class _AuthScreenState extends State<AuthScreen> {
 
   Future<void> _handleContinueWithGoogle() async {
     final ok = await _ensureConsent();
-    debugPrint('CONSENT RESULT (Google): $ok');
     if (!ok) return;
 
     final user = await AuthService().signInWithGoogle();
@@ -262,7 +234,6 @@ class _AuthScreenState extends State<AuthScreen> {
 
   Future<void> _handleSignInEmailPhone() async {
     final ok = await _ensureConsent();
-    debugPrint('CONSENT RESULT (Email/Phone): $ok');
     if (!ok) return;
 
     _openEmailPhoneSheet(context, isDark: widget.isDarkMode);
@@ -270,19 +241,9 @@ class _AuthScreenState extends State<AuthScreen> {
 
   Future<void> _handleSkip() async {
     final ok = await _ensureConsent();
-    debugPrint('CONSENT RESULT (Skip): $ok');
     if (!ok) return;
 
     await _showSkipDialog(context);
-  }
-
-  Future<void> _handleTestConsentButton() async {
-    final ok = await _ensureConsent();
-    debugPrint('CONSENT RESULT (TEST BUTTON): $ok');
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('TEST consent result: $ok')),
-    );
   }
 
   Future<String?> _showAccountMenuSheet() {
@@ -640,36 +601,6 @@ class _AuthScreenState extends State<AuthScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        // TEST BUTTON (always visible)
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                          child: SizedBox(
-                            width: double.infinity,
-                            height: 48,
-                            child: OutlinedButton(
-                              onPressed: _handleTestConsentButton,
-                              child: Text(
-                                'TEST CONSENT (tap me)',
-                                style: TextStyle(
-                                  color: isDarkMode ? Colors.white : Colors.black87,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                          child: Text(
-                            'consentAccepted=$_consentAccepted, isShowing=$_isShowingConsent',
-                            style: TextStyle(
-                              color: isDarkMode ? Colors.white70 : Colors.black54,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
-
                         if (_showUnverifiedBanner)
                           Padding(
                             padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
@@ -725,30 +656,41 @@ class _AuthScreenState extends State<AuthScreen> {
                               ),
                             ),
                           ),
-
                         SizedBox(height: screenHeight * 0.008),
                         Image.asset(
                           'assets/logo.png',
-                          height: screenHeight * 0.42,
+                          height: screenHeight * 0.45,
                           width: screenWidth * 1.5,
                           fit: BoxFit.contain,
                         ),
-
                         Padding(
                           padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.06),
-                          child: Text(
-                            'Auth Screen (TEST)',
+                          child: RichText(
                             textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: screenHeight * 0.028,
-                              color: isDarkMode ? Colors.white : Colors.black87,
-                              fontWeight: FontWeight.w700,
+                            text: TextSpan(
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                fontSize: screenHeight * 0.028,
+                                color: isDarkMode ? Colors.white : Colors.black87,
+                              ) ??
+                                  TextStyle(
+                                    fontSize: screenHeight * 0.028,
+                                    color: isDarkMode ? Colors.white : Colors.black87,
+                                  ),
+                              children: [
+                                TextSpan(text: 'auth.title_part1'.tr()),
+                                TextSpan(
+                                  text: 'auth.title_highlight'.tr(),
+                                  style: TextStyle(
+                                    color: isDarkMode ? AppColors.darkAccent : AppColors.lightPrimary,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                TextSpan(text: 'auth.title_part2'.tr()),
+                              ],
                             ),
                           ),
                         ),
-
-                        SizedBox(height: screenHeight * 0.02),
-
+                        SizedBox(height: screenHeight * 0.035),
                         ConstrainedBox(
                           constraints: BoxConstraints(maxWidth: buttonsMaxWidth),
                           child: Column(
@@ -768,9 +710,8 @@ class _AuthScreenState extends State<AuthScreen> {
                                   assetPath: 'assets/apple_logo_white.png',
                                   onTap: () async {
                                     final ok = await _ensureConsent();
-                                    debugPrint('CONSENT RESULT (Apple): $ok');
                                     if (!ok) return;
-                                    // sign in apple
+                                    // TODO: implement sign in with apple
                                   },
                                   isDark: true,
                                   background: const Color(0xFF000000),
@@ -823,9 +764,7 @@ class _AuthScreenState extends State<AuthScreen> {
                             ],
                           ),
                         ),
-
                         SizedBox(height: screenHeight * 0.02),
-
                         Padding(
                           padding: const EdgeInsets.only(top: 8.0, bottom: 24),
                           child: TextButton(
@@ -959,7 +898,13 @@ class _ConsentSheetState extends State<_ConsentSheet> {
               height: 52,
               child: ElevatedButton(
                 onPressed: checked ? () => Navigator.of(context).pop(true) : null,
-                style: ElevatedButton.styleFrom(shape: const StadiumBorder()),
+                style: ElevatedButton.styleFrom(
+                  shape: const StadiumBorder(),
+                  backgroundColor: const Color(0xFF024EE1),
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: Colors.grey,
+                  disabledForegroundColor: Colors.white70,
+                ),
                 child: Text('consent.accept_button'.tr()),
               ),
             ),
