@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Terms of Use — Diagnosis AI</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --font-body:  clamp(1.05rem, 2.8vw, 1.2rem);
+            --font-h2:    clamp(1.3rem,  3.5vw, 1.6rem);
+            --font-small: clamp(0.95rem, 2.5vw, 1.1rem);
+            --font-title: clamp(1.4rem,  4vw,   1.9rem);
+            --font-sub:   clamp(0.9rem,  2.5vw, 1rem);
+            --font-toc:   clamp(1rem,    2.6vw, 1.15rem);
+            --font-note:  clamp(0.9rem,  2.5vw, 1.05rem);
+            --font-label: clamp(0.8rem,  2vw,   0.95rem);
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #f5f5f5;
+            color: #333333;
+            margin: 0;
+            padding: 0;
+            font-size: var(--font-body);
+        }
+
+        .header {
+            background-color: #1a73e8;
+            padding: clamp(14px, 3vw, 20px) clamp(16px, 4vw, 28px);
+            color: white;
+        }
+
+        .header h1 {
+            font-size: var(--font-title);
+            margin: 0;
+            font-weight: 500;
+        }
+
+        .header p {
+            font-size: var(--font-sub);
+            margin: 6px 0 0 0;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .container {
+            max-width: 720px;
+            margin: clamp(16px, 4vw, 28px) auto;
+            padding: 0 clamp(12px, 4vw, 20px);
+        }
+
+        .section {
+            background-color: #ffffff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: clamp(16px, 4vw, 24px);
+            margin-bottom: clamp(12px, 3vw, 18px);
+        }
+
+        .section h2 {
+            font-size: var(--font-h2);
+            font-weight: 600;
+            color: #1a73e8;
+            margin: 0 0 12px 0;
+        }
+
+        .section p {
+            font-size: var(--font-body);
+            line-height: 1.7;
+            color: #555555;
+            margin: 0 0 12px 0;
+        }
+
+        .section p:last-child {
+            margin-bottom: 0;
+        }
+
+        .section ul {
+            padding-left: clamp(16px, 4vw, 24px);
+            margin: 10px 0;
+        }
+
+        .section ul li {
+            font-size: var(--font-body);
+            color: #555555;
+            line-height: 1.7;
+            margin-bottom: 6px;
+        }
+
+        .note {
+            background-color: #e8f0fe;
+            border-left: 4px solid #1a73e8;
+            padding: clamp(10px, 3vw, 14px) clamp(12px, 3vw, 18px);
+            border-radius: 0 6px 6px 0;
+            margin-top: 12px;
+            font-size: var(--font-note);
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .toc {
+            background-color: #ffffff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: clamp(16px, 4vw, 24px);
+            margin-bottom: clamp(16px, 4vw, 26px);
+        }
+
+        .toc h3 {
+            font-size: var(--font-label);
+            font-weight: 600;
+            color: #888;
+            margin: 0 0 12px 0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .toc ol {
+            padding-left: clamp(16px, 4vw, 22px);
+            margin: 0;
+        }
+
+        .toc ol li {
+            margin-bottom: 6px;
+        }
+
+        .toc ol li a {
+            font-size: var(--font-toc);
+            color: #1a73e8;
+            text-decoration: none;
+        }
+
+        .toc ol li a:hover {
+            text-decoration: underline;
+        }
+
+        .contact-box {
+            background-color: #1a73e8;
+            border-radius: 8px;
+            padding: clamp(20px, 5vw, 30px);
+            text-align: center;
+            margin-top: clamp(20px, 4vw, 28px);
+            margin-bottom: clamp(20px, 4vw, 28px);
+        }
+
+        .contact-box h3 {
+            color: white;
+            font-size: var(--font-h2);
+            margin: 0 0 10px 0;
+        }
+
+        .contact-box p {
+            color: rgba(255, 255, 255, 0.85);
+            font-size: var(--font-body);
+            margin: 0 0 16px 0;
+        }
+
+        .email-copy-btn {
+            display: inline-block;
+            background-color: white;
+            color: #1a73e8;
+            font-family: 'Roboto', sans-serif;
+            font-weight: 600;
+            font-size: var(--font-body);
+            padding: clamp(10px, 2.5vw, 13px) clamp(22px, 5vw, 30px);
+            border-radius: 24px;
+            border: none;
+            cursor: pointer;
+            transition: opacity 0.2s, transform 0.1s;
+        }
+
+        .email-copy-btn:hover {
+            opacity: 0.9;
+        }
+
+        .email-copy-btn:active {
+            transform: scale(0.97);
+            opacity: 0.8;
+        }
+
+        .copy-toast {
+            display: inline-block;
+            margin-top: 12px;
+            background-color: rgba(255, 255, 255, 0.2);
+            color: white;
+            font-size: var(--font-small);
+            padding: 6px 16px;
+            border-radius: 20px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+        }
+
+        .copy-toast.show {
+            opacity: 1;
+        }
+
+        footer {
+            text-align: center;
+            padding: clamp(16px, 4vw, 22px);
+            font-size: var(--font-sub);
+            color: #999;
+            border-top: 1px solid #e0e0e0;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        footer .separator {
+            color: #ccc;
+        }
+
+        footer a {
+            color: #1a73e8;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>📋 Terms of Use — Diagnosis AI</h1>
+    <p>Last updated: March 9, 2026</p>
+</div>
+
+<div class="container">
+
+    <div class="toc">
+        <h3>Table of Contents</h3>
+        <ol>
+            <li><a href="#section-1">Acceptance & Age Requirements</a></li>
+            <li><a href="#section-2">Permitted Use & Limitations</a></li>
+        </ol>
+    </div>
+
+    <div class="section" id="section-1">
+        <h2>1. Acceptance & Age Requirements</h2>
+        <p>By accessing or using Diagnosis AI, you agree to be bound by these Terms of Use. If you do not agree, please do not use the app.</p>
+        <p>You must meet the minimum age requirement for your region to use Diagnosis AI:</p>
+        <ul>
+            <li><strong>United States / United Kingdom:</strong> 13 years or older.</li>
+            <li><strong>European Union:</strong> 16 years or older.</li>
+            <li><strong>Russia:</strong> 14 years or older.</li>
+            <li><strong>Other regions:</strong> 13 years or older, or the minimum age required by your local law.</li>
+        </ul>
+        <p>If you are under the required age, you may only use the app with the verified consent of a parent or legal guardian.</p>
+        <div class="note">
+            ℹ️ By creating an account, you confirm that you meet the age requirement for your region. We reserve the right to suspend accounts that do not comply.
+        </div>
+    </div>
+
+    <div class="section" id="section-2">
+        <h2>2. Permitted Use & Limitations</h2>
+        <p>Diagnosis AI is an educational tool that uses AI to suggest possible conditions based on symptoms you describe. You agree to use it only for personal, non-commercial, informational purposes.</p>
+        <p>You must <strong>not</strong>:</p>
+        <ul>
+            <li>Use the app as a substitute for professional medical advice, diagnosis, or treatment.</li>
+            <li>Attempt to reverse-engineer, copy, or redistribute any part of the app.</li>
+            <li>Submit false, misleading, or harmful content through the app.</li>
+            <li>Use the app in any way that violates applicable laws or regulations.</li>
+        </ul>
+        <p>We reserve the right to suspend or terminate access for any user who violates these terms. We are not liable for any decisions made based on the app's output.</p>
+        <div class="note">
+            ⚠️ Always consult a qualified healthcare professional for any medical concerns. Diagnosis AI does not provide medical diagnoses.
+        </div>
+    </div>
+
+    <div class="contact-box">
+        <h3>Have questions about these terms?</h3>
+        <p>Send us an email and we will get back to you as soon as possible.</p>
+        <button class="email-copy-btn" onclick="copyEmail()">
+            SKostanian@uclan.ac.uk
+        </button>
+        <br>
+        <span class="copy-toast" id="toast">✅ Email copied!</span>
+    </div>
+
+</div>
+
+<footer>
+    <span>2026 Diagnosis AI. All rights reserved.</span>
+</footer>
+
+<script>
+    function copyEmail() {
+        var email = 'SKostanian@uclan.ac.uk';
+        navigator.clipboard.writeText(email).then(showToast).catch(function() {
+            var ta = document.createElement('textarea');
+            ta.value = email;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+            showToast();
+        });
+    }
+
+    function showToast() {
+        var toast = document.getElementById('toast');
+        toast.classList.add('show');
+        setTimeout(function() { toast.classList.remove('show'); }, 2500);
+    }
+</script>
+
+</body>
+</html>

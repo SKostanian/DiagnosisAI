@@ -1,3 +1,4 @@
+import 'package:diagnosis_ai/screens/web_view_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:easy_localization/easy_localization.dart';
@@ -109,6 +110,9 @@ class _HealthAssistantAppState extends State<HealthAssistantApp> {
             EmailSignInScreen(isDarkMode: _themeMode == ThemeMode.dark, onThemeChanged: _toggleTheme),
         '/phone-sign_in': (context) =>
             PhoneSignInScreen(isDarkMode: _themeMode == ThemeMode.dark, onThemeChanged: _toggleTheme),
+        '/privacy': (context) => const WebViewScreen(title: 'Privacy Policy', assetPath: 'assets/privacy.html',),
+        '/terms': (context) => const WebViewScreen(title: 'Terms of Use', assetPath: 'assets/terms.html',),
+        '/disclaimer': (context) => const WebViewScreen(title: 'Medical Disclaimer', assetPath: 'assets/disclaimer.html',),
       },
 
       onGenerateRoute: (settings) {
