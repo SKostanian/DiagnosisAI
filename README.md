@@ -17,7 +17,8 @@ To setup DiagnosisAI you need:
 # How to Launch?
 
 DiagnosisAI uses service-account.json which holds private information about google authentification private key and app's private key. 
-It MUST NOT be shared with third parties.
+
+### It MUST NOT be shared with third parties.
 
 To launch, the following commands are used:
 
