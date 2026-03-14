@@ -1,0 +1,55 @@
+{
+  "project_info": {
+    "project_number": "54405584767",
+    "project_id": "health-app-9b2f5",
+    "storage_bucket": "health-app-9b2f5.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:54405584767:android:cc8cfc7cebe22522256c4a",
+        "android_client_info": {
+          "package_name": "com.example.diagnosis_ai"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "54405584767-c4qvh5sfe7t95v8dq2l1motuatfg2eok.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.diagnosis_ai",
+            "certificate_hash": "ba178e3608796465102a08363c364183e680f52a"
+          }
+        },
+        {
+          "client_id": "54405584767-ij5amudtlecq5sa70v0t05eafmr5fkrp.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.diagnosis_ai",
+            "certificate_hash": "57a6b568b98a1fc1c7efa241d1956c082c713d78"
+          }
+        },
+        {
+          "client_id": "54405584767-dfa1cv8dht2bi8h176vuu5g0r73lt9pt.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA-8qLwyed1rxBZbULTu5ZiykEHpW-5so4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "54405584767-dfa1cv8dht2bi8h176vuu5g0r73lt9pt.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
