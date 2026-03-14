@@ -69,3 +69,5 @@ flutter pub get
 flutter run
 ```
 To run the flutter locally and see the DiagnosisAI application on emulator.
+
+If error is happening during 1st launch, please try again and the issue resolves.
