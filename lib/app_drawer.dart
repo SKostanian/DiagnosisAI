@@ -36,7 +36,11 @@ class AppDrawer extends StatelessWidget {
   }
 
   void _goTo(BuildContext context, String routeName) {
+    // closing drawer
     Navigator.of(context).pop();
+
+    // (2017) Stackoverflow.com.
+    // Available at: https://stackoverflow.com/questions/45889341/flutter-remove-all-routes (Accessed: March 15, 2026).
     Navigator.of(context).pushNamedAndRemoveUntil(routeName, (route) => false);
   }
 
@@ -95,6 +99,9 @@ class AppDrawer extends StatelessWidget {
             },
           ),
           Padding(
+            // Flutter Teacher (2022) Padding widget in Flutter | Flutter EdgeInsets & EdgeInsetsDirectional. Youtube.
+            // EdgeInsets 4:35 minutes
+            // Available at: https://www.youtube.com/watch?v=bq37eFbRMc0 (Accessed: March 15, 2026).
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -102,6 +109,7 @@ class AppDrawer extends StatelessWidget {
                 border: Border.all(color: AppColors.lightPrimary),
                 borderRadius: BorderRadius.circular(6),
               ),
+
               child: DropdownButtonHideUnderline(
                 child: DropdownButton<String>(
                   value: currentLanguageLabel,
@@ -113,6 +121,8 @@ class AppDrawer extends StatelessWidget {
                     fontSize: 16,
                     color: isDark ? Colors.white : AppColors.lightPrimary,
                   ),
+                  // DropdownButton class - material library - Dart API (2026) Flutter.dev.
+                  // Available at: https://api.flutter.dev/flutter/material/DropdownButton-class.html (Accessed: March 15, 2026).
                   items: const [
                     DropdownMenuItem(
                       value: 'English',
@@ -158,6 +168,7 @@ class AppDrawer extends StatelessWidget {
       IconData icon,
       String title,
       bool isDark, {
+        // onTap can be functuin or null
         VoidCallback? onTap,
       }) {
     return ListTile(
