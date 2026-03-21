@@ -1057,21 +1057,30 @@ Requirements:
 
 // vertex call with hard timeout // temperature in parameter
 async function llmJson(schema: any, prompt: string, ms = 55_000, temperature = 0.3) {
+
+  // here I declare timer, I need it to clear timeout later
+  // because if I dont clear, timeout will fire even after success
+  let timer: ReturnType<typeof setTimeout> | undefined;
+
   const timeout = new Promise<never>((_, reject) =>
 
-    // Window: setTimeout() method (2026) MDN Web Docs. Available at: https://developer.mozilla.org/en-US/docs/Web/API/Window/setTimeout (Accessed: March 12, 2026).
-    setTimeout(() => {
+    // Window: setTimeout() method (2026) MDN Web Docs.
+    // Available at: https://developer.mozilla.org/en-US/docs/Web/API/Window/setTimeout (Accessed: March 12, 2026).
+    // here I create timeout promise, if too long then reject
+    timer = setTimeout(() => {
       logger.error("LLM TIMEOUT", {ms});
-      // Promise (2026) MDN Web Docs. Available at: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise (Accessed: March 12, 2026).
-      // reject is when promise is failed,
-      // and I used firebase https error, from here:
-      // Functions package (no date) Firebase. Available at: https://firebase.google.com/docs/reference/js/functions.md (Accessed: March 12, 2026).
+
+      // Promise (2026) MDN Web Docs.
+      // Available at: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise (Accessed: March 12, 2026).
+      // reject is when promise is failed
       reject(new HttpsError("deadline-exceeded", "LLM timeout"));
     }, ms)
   );
 
   const task = (async () => {
     try {
+
+      // here I call vertex model
       const resp = await generativeModel.generateContent({
         contents: [{role: "user", parts: [{text: prompt}]}],
         generationConfig: {
@@ -1081,28 +1090,60 @@ async function llmJson(schema: any, prompt: string, ms = 55_000, temperature = 0
         },
       });
 
-      // Optional chaining (?.) (2026) MDN Web Docs. Available at: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Optional_chaining (Accessed: March 12, 2026).
-      // Nullish coalescing operator (??) (2026) MDN Web Docs. Available at: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Nullish_coalescing (Accessed: March 12, 2026).
+      // Optional chaining (?.) (2026) MDN Web Docs.
+      // Available at: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Optional_chaining (Accessed: March 12, 2026).
+      // Nullish coalescing operator (??) (2026) MDN Web Docs.
+      // Available at: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Nullish_coalescing (Accessed: March 12, 2026).
+      // here I get text from model response, if null then "{}"
       const text = resp.response?.candidates?.[0]?.content?.parts?.[0]?.text ?? "{}";
+
       logger.info("LLM raw preview", {preview: text.slice(0, 200)});
+
       try {
+        // here I parse JSON from model
         return JSON.parse(text);
       } catch (e) {
+
+        // if model return not JSON, I log error
         logger.error("LLM returned non-JSON", {textPreview: text.slice(0, 400)});
-        throw new HttpsError("internal", "LLM returned non-JSON", {preview: text.slice(0, 400)});
+
+        throw new HttpsError("internal", "LLM returned non-JSON", {
+          preview: text.slice(0, 400),
+        });
       }
+
     } catch (e: any) {
+
+      // here I log error from vertex or network
       logger.error("generateContent failed", {
-        msg: e?.message, code: e?.code, name: e?.name, details: e?.details,
+        msg: e?.message,
+        code: e?.code,
+        name: e?.name,
+        details: e?.details,
         stack: e?.stack?.split("\n").slice(0, 5).join("\n"),
       });
+
+      // if already HttpsError, I dont override it
+      if (e instanceof HttpsError) throw e;
+
       throw new HttpsError("internal", e?.message || "LLM call failed", {
-        code: e?.code, details: e?.details,
+        code: e?.code,
+        details: e?.details,
       });
     }
   })();
-    // Promise.Race() (2026) MDN Web Docs. Available at: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/race (Accessed: March 12, 2026).
-  return Promise.race([task, timeout]);
+
+  // Promise.Race() (2026) MDN Web Docs.
+  // Available at: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/race (Accessed: March 12, 2026).
+  // here I race between task and timeout
+  try {
+    return await Promise.race([task, timeout]);
+  } finally {
+
+    // VERY IMPORTANT: clear timeout always
+    // because before I had bug: timeout fired after success
+    if (timer) clearTimeout(timer);
+  }
 }
 
 /* Final text composer */
@@ -1149,21 +1190,31 @@ function makePatientAndClinicianText(tag: string, diagRaw: any) {
   }
 }
 
-
 /* startSession */
 export const startSession = onCall<{ locale: string; selectedAreas: string[] }>(
   {timeoutSeconds: 300, memory: "1GiB"},
   async (req) => {
     logger.info("startSession ENTER", {uid: req.auth?.uid, data: req.data});
+
+    // here I check if user is authenticated
+    // because callable function should work only for logged in user
     if (!req.auth) throw new HttpsError("unauthenticated", "Login required");
+
     const {locale, selectedAreas} = req.data || {};
+
+    // here I validate input from client
+    // locale must exist, and selectedAreas must be non empty array
     if (!locale || !Array.isArray(selectedAreas) || selectedAreas.length === 0) {
       throw new HttpsError("invalid-argument", "locale and selectedAreas are required");
     }
 
     // here I define the initial budget/limit for questions
     const initialBudget = 8;
+
+    // here I normalize locale tag, for example ru-RU or en-US style
     const tag = normalizeLocaleTag(locale);
+
+    // here I create firestore document for session
     const doc = await db.collection("sessions").add({
       userId: req.auth.uid,
       locale,
@@ -1175,13 +1226,15 @@ export const startSession = onCall<{ locale: string; selectedAreas: string[] }>(
       askedTexts: [],
       questionsLeft: initialBudget,
 
-      // Update a Firestore document timestamp (2026) Google Cloud Documentation. Available at: https://docs.cloud.google.com/firestore/docs/samples/firestore-data-set-server-timestamp (Accessed: March 12, 2026).
+      // Update a Firestore document timestamp (2026) Google Cloud Documentation.
+      // Available at: https://docs.cloud.google.com/firestore/docs/samples/firestore-data-set-server-timestamp (Accessed: March 12, 2026).
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
     });
-    try {
 
-      // I use temperature 0.5 for question
+    try {
+      // here I call LLM for first question
+      // I use temperature 0.5 for question, because it can be little flexible
       let q = await llmJson(
         QUESTION_SCHEMA,
         buildQuestionPrompt(locale, selectedAreas, {}, [], initialBudget),
@@ -1189,36 +1242,47 @@ export const startSession = onCall<{ locale: string; selectedAreas: string[] }>(
         0.5
       );
 
-      // sanitize and have first feeling question
+      // here I sanitize question, so format and content are more stable
       q = sanitizeQuestion(q, tag, selectedAreas, []);
+
+      // here I build canonical key from question text
+      // it helps to avoid duplicates later
       const key = canonicalQuestionKey(q.text);
 
-      // doc is document firestore, I update database by doing it
+      // here I update firestore with first asked question data
+      // doc is firestore document, and I save topic/text/key for duplicate control
       await doc.update({
-
-          // JavaScript SDK (2026) Firebase.
-          // Available at: https://firebase.google.com/docs/reference/js/v8/firebase.firestore.FieldValue (Accessed: March 12, 2026).
+        // JavaScript SDK (2026) Firebase.
+        // Available at: https://firebase.google.com/docs/reference/js/v8/firebase.firestore.FieldValue (Accessed: March 12, 2026).
         askedTopics: FieldValue.arrayUnion(q.topic),
         askedTexts: FieldValue.arrayUnion(q.text),
 
         // I used here spread, if key exists then add askedKeys
         ...(key ? {askedKeys: FieldValue.arrayUnion(key)} : {}),
+
         updatedAt: FieldValue.serverTimestamp(),
       });
+
+      // here I return first question with created session id
       return {type: "question", sessionId: doc.id, question: q};
     } catch (err: any) {
       logger.error("startSession ERROR", {
-        msg: err?.message, code: err?.code, details: err?.details,
+        msg: err?.message,
+        code: err?.code,
+        details: err?.details,
         stack: err?.stack?.split("\n").slice(0, 5).join("\n"),
       });
-      if (err instanceof HttpsError) throw err;
-      throw new HttpsError("internal", err?.message ?? "startSession error", {
-        code: err?.code, details: err?.details,
-      });
 
-      // Promise.Prototype.Finally() (2026) MDN Web Docs.
-      // Available at: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/finally (Accessed: March 16, 2026).
+      // if error already firebase https error, I keep it as is
+      if (err instanceof HttpsError) throw err;
+
+      throw new HttpsError("internal", err?.message ?? "startSession error", {
+        code: err?.code,
+        details: err?.details,
+      });
     } finally {
+      // Promise.prototype.finally() (2026) MDN Web Docs.
+      // Available at: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/finally (Accessed: March 16, 2026).
       logger.info("startSession EXIT");
     }
   }
@@ -1229,47 +1293,60 @@ export const postAnswer = onCall<{ sessionId: string; questionId: string; value:
   {timeoutSeconds: 300, memory: "1GiB"},
   async (req) => {
     logger.info("postAnswer ENTER", {uid: req.auth?.uid, data: req.data});
+
+    // here I check auth, because only logged in user can answer session
     if (!req.auth) throw new HttpsError("unauthenticated", "Login required");
+
     const {sessionId, questionId, value} = (req.data || {}) as {
       sessionId?: string; questionId?: string; value?: any;
     };
+
+    // here I validate input from client
     if (!sessionId || !questionId) {
       throw new HttpsError("invalid-argument", "sessionId and questionId are required");
     }
-    try {
 
-        // Firestore (2026) Firebase.
-        // Available at: https://firebase.google.com/docs/firestore/pipelines/stages/input/collection (Accessed: March 16, 2026).
+    try {
+      // Firestore (2026) Firebase.
+      // Available at: https://firebase.google.com/docs/firestore/pipelines/stages/input/collection (Accessed: March 16, 2026).
       const ref = db.collection("sessions").doc(sessionId);
 
-        // I get the idea for the following code from here:
-        // (2026) Stackoverflow.com.
-        // Available at: https://stackoverflow.com/questions/46878913/cloud-firestore-how-to-fetch-a-document-reference-inside-my-collection-query-an (Accessed: March 16, 2026).
+      // I get the idea for the following code from here:
+      // (2026) Stackoverflow.com.
+      // Available at: https://stackoverflow.com/questions/46878913/cloud-firestore-how-to-fetch-a-document-reference-inside-my-collection-query-an (Accessed: March 16, 2026).
 
-        // here I get document from firestore, like snapshot
+      // here I get document from firestore, like snapshot
       const snap = await ref.get();
       if (!snap.exists) throw new HttpsError("not-found", "Session not found");
 
-        // and here I get data from firestore
+      // and here I get data from firestore
       const s = snap.data() as any;
+
+      // here I check that session belongs to this user
+      // otherwise user maybe can send answer to other user session
+      if (s.userId !== req.auth.uid) {
+        throw new HttpsError("permission-denied", "This session does not belong to current user");
+      }
 
       // here i get the language for user
       const tag = normalizeLocaleTag(s.locale);
 
       // if user skip question
       const isSkip = (typeof value === "string" && value === SKIP_VALUE);
-      let answers = {...(s.answers || {})}; // here I cope answers from db
 
-        // check how many questions left
+      // here I copy answers from db to local object
+      let answers = {...(s.answers || {})};
+
+      // check how many questions left
       let left: number = typeof s.questionsLeft === "number" ? s.questionsLeft : 8;
 
       if (!isSkip) {
-
-          // get only number from user values
+        // get only number from user values if possible
         const normalizedValue =
           (typeof value === "number" || typeof value === "string") ?
             normalizeNumericValue(value, true) :
             value;
+
         answers = {...answers, [questionId]: normalizedValue};
         left = Math.max(0, left - 1);
 
@@ -1282,15 +1359,19 @@ export const postAnswer = onCall<{ sessionId: string; questionId: string; value:
         });
 
         try {
-          const valStr = typeof normalizedValue === "string" ? normalizedValue : String(normalizedValue ?? "");
+          const valStr = typeof normalizedValue === "string" ?
+            normalizedValue :
+            String(normalizedValue ?? "");
+
           const coughWithBloodEN = "Cough with blood";
           const coughWithBloodRU = "Кашель с кровью";
 
-          // Object.Prototype.hasOwnProperty() (2026) MDN Web Docs.
+          // Object.prototype.hasOwnProperty() (2026) MDN Web Docs.
           // Available at: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/hasOwnProperty (Accessed: March 16, 2026).
           const sputumAlready = Object.prototype.hasOwnProperty.call(answers, "sputum_color");
           const isCoughType = questionId === "cough_type";
           const isHemoptysis = valStr === coughWithBloodEN || valStr === coughWithBloodRU;
+
           if (isCoughType && isHemoptysis && !sputumAlready) {
             const sputumValue = tag === "ru-RU" ? "С кровью" : "Bloody";
             answers = {...answers, sputum_color: sputumValue};
@@ -1300,13 +1381,19 @@ export const postAnswer = onCall<{ sessionId: string; questionId: string; value:
               ["answers.sputum_color"]: sputumValue,
               updatedAt: FieldValue.serverTimestamp(),
             });
-            logger.info("Auto-set sputum_color due to cough with blood", {sessionId, sputumValue});
+
+            logger.info("Auto-set sputum_color due to cough with blood", {
+              sessionId,
+              sputumValue,
+            });
           }
         } catch (e) {
-
-            // I had problems with sputum color in questions, so I have this logging warn
-            // Write and view logs (2026) Firebase. Available at: https://firebase.google.com/docs/functions/writing-and-viewing-logs (Accessed: March 16, 2026).
-          logger.warn("Failed to auto-set sputum_color from cough_type", {message: (e as any)?.message});
+          // I had problems with sputum color in questions, so I have this logging warn
+          // Write and view logs (2026) Firebase.
+          // Available at: https://firebase.google.com/docs/functions/writing-and-viewing-logs (Accessed: March 16, 2026).
+          logger.warn("Failed to auto-set sputum_color from cough_type", {
+            message: (e as any)?.message,
+          });
         }
       } else {
         logger.warn("Client requested SKIP for duplicate question", {questionId});
@@ -1315,38 +1402,48 @@ export const postAnswer = onCall<{ sessionId: string; questionId: string; value:
       const MIN_Q = 5; // need at least 5 answers before early stop
       const MAX_Q = 12; // 12 questions max
       const TOP1 = 0.7; // I need higher confidence for early stop, that is why is 0.7
-      const MARGIN= 0.3;
+      const MARGIN = 0.3;
 
-      // Object.Keys() (2026) MDN Web Docs. Available at: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/keys (Accessed: March 16, 2026).
+      // Object.keys() (2026) MDN Web Docs.
+      // Available at: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/keys (Accessed: March 16, 2026).
       const answeredCount = Object.keys(answers).length;
+
       if (answeredCount >= MIN_Q) {
         try {
-            // here I wait for Json from function, diagnosis schema, prompt, timeout and temperature
+          // here I wait for Json from function, diagnosis schema, prompt, timeout and temperature
           const probeRaw = await llmJson(
             DIAGNOSIS_SCHEMA,
             buildDiagnosisPrompt(s.locale, s.selectedAreas, answers),
             55_000,
             0.2
           );
+
           const probe = normalizeDx(probeRaw);
           const ranked = Array.isArray(probe.dx) ? probe.dx : [];
 
-          // we get probabilities of eacb diagnosis
-          const p1 = ranked[0]?.prob ?? 0; const p2 = ranked[1]?.prob ?? 0;
+          // we get probabilities of each diagnosis
+          const p1 = ranked[0]?.prob ?? 0;
+          const p2 = ranked[1]?.prob ?? 0;
+
           if (p1 >= TOP1 || (p1 - p2) >= MARGIN || answeredCount >= MAX_Q) {
-              // and generate texts
+            // and generate texts
             const {patientText, clinicianText, dxPercents, normalized} =
               makePatientAndClinicianText(tag, probe);
+
             const diag = {...normalized, patientText, clinicianText, dxPercents};
+
             await ref.update({
               phase: "result",
               provisionalDx: diag.dx,
               confidence: diag.confidence,
               updatedAt: FieldValue.serverTimestamp(),
             });
+
             return {type: "diagnosis", diagnosis: diag};
           }
-        } catch {/* ignore */}
+        } catch {
+          // here I ignore probe errors, because app still can ask next question
+        }
       }
 
       // must ask for chest
@@ -1357,10 +1454,11 @@ export const postAnswer = onCall<{ sessionId: string; questionId: string; value:
           askedTexts: FieldValue.arrayUnion(must.text),
           updatedAt: FieldValue.serverTimestamp(),
         });
+
         return {type: "question", question: must};
       }
 
-      /// letting LLM to ask further
+      // letting LLM to ask further
       for (let attempt = 0; attempt < 3; attempt++) {
         let q = await llmJson(
           QUESTION_SCHEMA,
@@ -1374,17 +1472,23 @@ export const postAnswer = onCall<{ sessionId: string; questionId: string; value:
           const fb = nextFallbackQuestion(tag, s.selectedAreas || [], answers, s.askedTopics || []);
           if (fb) q = fb;
         }
-        if (q.id === "_stop") {
 
-          // if here minimum set of answers then I hsve more fallback questions
+        if (q.id === "_stop") {
+          // if here minimum set of answers then I have more fallback questions
           if (answeredCount < MIN_Q) {
             const fb = nextFallbackQuestion(tag, s.selectedAreas || [], answers, s.askedTopics || []);
             if (fb) {
               q = fb;
             } else {
-
               // asking severity for end
-              q = {id: "severity", topic: "severity", type: "scale", unit: "1-10", text: severityText(tag), options: []} as any;
+              q = {
+                id: "severity",
+                topic: "severity",
+                type: "scale",
+                unit: "1-10",
+                text: severityText(tag),
+                options: [],
+              } as any;
             }
           } else {
             const raw = await llmJson(
@@ -1393,77 +1497,114 @@ export const postAnswer = onCall<{ sessionId: string; questionId: string; value:
               55_000,
               0.2
             );
+
             const {patientText, clinicianText, dxPercents, normalized} =
               makePatientAndClinicianText(tag, raw);
+
             const diag = {...normalized, patientText, clinicianText, dxPercents};
+
             await ref.update({
               phase: "result",
               provisionalDx: diag.dx,
               confidence: diag.confidence,
               updatedAt: FieldValue.serverTimestamp(),
             });
+
             return {type: "diagnosis", diagnosis: diag};
           }
         }
+
         q = sanitizeQuestion(q, tag, s.selectedAreas, s.askedTopics || []);
 
         // I need to ensure there are no duplicates
         const texts: string[] = Array.isArray(s.askedTexts) ? s.askedTexts : [];
         const key = canonicalQuestionKey(q.text);
         const idDup = Object.prototype.hasOwnProperty.call(answers, q.id);
-        const topicDup= q.topic && (s.askedTopics || []).includes(q.topic);
+        const topicDup = q.topic && (s.askedTopics || []).includes(q.topic);
         const keyDup = !!key && (s.askedKeys || []).includes(key);
         const semDup = isSemanticallyDuplicate(q.text, texts);
         const isDup = idDup || topicDup || keyDup || semDup;
+
         if (!isDup) {
           const update: Record<string, any> = {
             askedTopics: FieldValue.arrayUnion(q.topic),
             askedTexts: FieldValue.arrayUnion(q.text),
             updatedAt: FieldValue.serverTimestamp(),
           };
+
           if (key) update.askedKeys = FieldValue.arrayUnion(key);
+
           await ref.update(update);
           return {type: "question", question: q};
         }
+
         logger.warn("LLM duplicate question, regenerating", {
-          attempt, qid: q.id, topic: q.topic, key, idDup, topicDup, keyDup, semDup,
+          attempt,
+          qid: q.id,
+          topic: q.topic,
+          key,
+          idDup,
+          topicDup,
+          keyDup,
+          semDup,
         });
       }
-      // if 3 failures then finish with result
+
+      // if 3 failures then finish with fallback question or result
       if (answeredCount < MIN_Q) {
         const fb = nextFallbackQuestion(tag, s.selectedAreas || [], answers, s.askedTopics || []);
-        const q = fb ?? {id: "duration", topic: "duration", type: "text", text: tag === "ru-RU" ? "Как давно это началось?" : "How long has this been going on?", options: []} as any;
+        const q = fb ?? {
+          id: "duration",
+          topic: "duration",
+          type: "text",
+          text: tag === "ru-RU" ? "Как давно это началось?" : "How long has this been going on?",
+          options: [],
+        } as any;
+
         const update: Record<string, any> = {
           askedTopics: FieldValue.arrayUnion(q.topic),
           askedTexts: FieldValue.arrayUnion(q.text),
           updatedAt: FieldValue.serverTimestamp(),
         };
+
         const key2 = canonicalQuestionKey(q.text);
         if (key2) update["askedKeys"] = FieldValue.arrayUnion(key2);
+
         await ref.update(update);
         return {type: "question", question: q};
       }
+
       const raw = await llmJson(
         DIAGNOSIS_SCHEMA,
         buildDiagnosisPrompt(s.locale, s.selectedAreas, answers),
         55_000,
         0.2
       );
+
       const {patientText, clinicianText, dxPercents, normalized} =
         makePatientAndClinicianText(tag, raw);
+
       const diag = {...normalized, patientText, clinicianText, dxPercents};
+
       await ref.update({
         phase: "result",
         provisionalDx: diag.dx,
         confidence: diag.confidence,
         updatedAt: FieldValue.serverTimestamp(),
       });
+
       return {type: "diagnosis", diagnosis: diag};
     } catch (err: any) {
       logger.error("postAnswer ERROR", {
-        msg: err?.message, code: err?.code, details: err?.details,
+        msg: err?.message,
+        code: err?.code,
+        details: err?.details,
         stack: err?.stack?.split("\n").slice(0, 5).join("\n"),
       });
+
+      // if error already firebase https error, I keep it as is
+      if (err instanceof HttpsError) throw err;
+
       throw new HttpsError("internal", err?.message ?? "postAnswer error", err?.details);
     } finally {
       logger.info("postAnswer EXIT");
@@ -1471,44 +1612,79 @@ export const postAnswer = onCall<{ sessionId: string; questionId: string; value:
   }
 );
 
-/* test */
+/* testStartSession */
 export const testStartSession = onRequest(
   {cors: true, timeoutSeconds: 120, memory: "1GiB"},
   async (req, res) => {
-    logger.info("testStartSession ENTER", {query: req.query});
+    logger.info("testStartSession ENTER", {
+      method: req.method,
+      query: req.query,
+      body: req.body,
+    });
+
     try {
-      const locale = (req.query.locale as string) || "ru-RU";
-      const areas = typeof req.query.areas === "string" ?
-        (req.query.areas as string).split(",") :
-        ["chest"];
+      // here I allow both GET query and POST body
+      const locale =
+        (req.method === "GET" ? req.query.locale : req.body?.locale) as string || "ru-RU";
+
+      const selectedAreas =
+        req.method === "GET" ?
+          (typeof req.query.areas === "string" ?
+            (req.query.areas as string).split(",").map((x) => x.trim()).filter(Boolean) :
+            ["chest"]) :
+          (Array.isArray(req.body?.selectedAreas) && req.body.selectedAreas.length > 0 ?
+            req.body.selectedAreas :
+            ["chest"]);
+
+      // here I define question budget for first session
+      const initialBudget = 8;
+
+      // here I normalize locale
+      const tag = normalizeLocaleTag(locale);
+
+      // here I create test firestore session
+      // I use fake uid because this endpoint is only for testing
+      const doc = await db.collection("sessions").add({
+        userId: "test-user",
+        locale,
+        selectedAreas,
+        phase: "asking",
+        answers: {},
+        askedTopics: [],
+        askedKeys: [],
+        askedTexts: [],
+        questionsLeft: initialBudget,
+
+        // Update a Firestore document timestamp (2026) Google Cloud Documentation.
+        // Available at: https://docs.cloud.google.com/firestore/docs/samples/firestore-data-set-server-timestamp (Accessed: March 12, 2026).
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
 
       // for question I have temperature 0.5, they may be random
-      const q = await llmJson(
+      let q = await llmJson(
         QUESTION_SCHEMA,
-        buildQuestionPrompt(locale, areas, {}, [], 8),
+        buildQuestionPrompt(locale, selectedAreas, {}, [], initialBudget),
         55_000,
         0.5
       );
 
       // normalizing call
-      const tag = normalizeLocaleTag(locale);
-      const sanitized = sanitizeQuestion(q, tag, areas, []);
+      q = sanitizeQuestion(q, tag, selectedAreas, []);
+      const key = canonicalQuestionKey(q.text);
 
-      if (sanitized.id === "_stop") {
-        // I have temperature 0.2, it need to be clear
-        const raw = await llmJson(
-          DIAGNOSIS_SCHEMA,
-          buildDiagnosisPrompt(locale, areas, {}),
-          55_000,
-          0.2
-        );
-        const {patientText, clinicianText, dxPercents, normalized} =
-          makePatientAndClinicianText(tag, raw);
-        const diag = {...normalized, patientText, clinicianText, dxPercents};
-        res.json({type: "diagnosis", diagnosis: diag});
-      } else {
-        res.json({type: "question", question: sanitized});
-      }
+      // here I save first asked question to firestore
+      await doc.update({
+        // JavaScript SDK (2026) Firebase.
+        // Available at: https://firebase.google.com/docs/reference/js/v8/firebase.firestore.FieldValue (Accessed: March 12, 2026).
+        askedTopics: FieldValue.arrayUnion(q.topic),
+        askedTexts: FieldValue.arrayUnion(q.text),
+        ...(key ? {askedKeys: FieldValue.arrayUnion(key)} : {}),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+
+      // here I return real sessionId, so it can be used in next Postman request
+      res.json({type: "question", sessionId: doc.id, question: q});
     } catch (err: any) {
       logger.error("testStartSession ERROR", {
         msg: err?.message,
@@ -1516,9 +1692,336 @@ export const testStartSession = onRequest(
         details: err?.details,
         stack: err?.stack?.split("\n").slice(0, 5).join("\n"),
       });
+
       res.status(500).json({error: err?.message || "Internal error"});
     } finally {
       logger.info("testStartSession EXIT");
+    }
+  }
+);
+
+/* testPostAnswer */
+export const testPostAnswer = onRequest(
+  {cors: true, timeoutSeconds: 120, memory: "1GiB"},
+  async (req, res) => {
+    logger.info("testPostAnswer ENTER", {
+      method: req.method,
+      query: req.query,
+      body: req.body,
+    });
+
+    try {
+      // here I allow both GET query and POST body
+      const sessionId =
+        (req.method === "GET" ? req.query.sessionId : req.body?.sessionId) as string;
+
+      const questionId =
+        (req.method === "GET" ? req.query.questionId : req.body?.questionId) as string;
+
+      const value =
+        req.method === "GET" ? req.query.value : req.body?.value;
+
+      // here I validate required fields
+      if (!sessionId || !questionId) {
+        res.status(400).json({error: "sessionId and questionId are required"});
+        return;
+      }
+
+      // Firestore (2026) Firebase.
+      // Available at: https://firebase.google.com/docs/firestore/pipelines/stages/input/collection (Accessed: March 16, 2026).
+      const ref = db.collection("sessions").doc(sessionId);
+
+      // here I get document from firestore, like snapshot
+      const snap = await ref.get();
+      if (!snap.exists) {
+        res.status(404).json({error: "Session not found"});
+        return;
+      }
+
+      // and here I get data from firestore
+      const s = snap.data() as any;
+
+      // here i get the language for user
+      const tag = normalizeLocaleTag(s.locale);
+
+      // if user skip question
+      const isSkip = (typeof value === "string" && value === SKIP_VALUE);
+
+      // here I copy answers from db
+      let answers = {...(s.answers || {})};
+
+      // check how many questions left
+      let left: number = typeof s.questionsLeft === "number" ? s.questionsLeft : 8;
+
+      if (!isSkip) {
+        // get only number from user values if possible
+        const normalizedValue =
+          (typeof value === "number" || typeof value === "string") ?
+            normalizeNumericValue(value, true) :
+            value;
+
+        answers = {...answers, [questionId]: normalizedValue};
+        left = Math.max(0, left - 1);
+
+        // Add data to Cloud Firestore (2026) Firebase.
+        // Available at: https://firebase.google.com/docs/firestore/manage-data/add-data (Accessed: March 16, 2026).
+        await ref.update({
+          [`answers.${questionId}`]: normalizedValue,
+          questionsLeft: left,
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+
+        try {
+          const valStr = typeof normalizedValue === "string" ?
+            normalizedValue :
+            String(normalizedValue ?? "");
+
+          const coughWithBloodEN = "Cough with blood";
+          const coughWithBloodRU = "Кашель с кровью";
+
+          // Object.prototype.hasOwnProperty() (2026) MDN Web Docs.
+          // Available at: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/hasOwnProperty (Accessed: March 16, 2026).
+          const sputumAlready = Object.prototype.hasOwnProperty.call(answers, "sputum_color");
+          const isCoughType = questionId === "cough_type";
+          const isHemoptysis = valStr === coughWithBloodEN || valStr === coughWithBloodRU;
+
+          if (isCoughType && isHemoptysis && !sputumAlready) {
+            const sputumValue = tag === "ru-RU" ? "С кровью" : "Bloody";
+            answers = {...answers, sputum_color: sputumValue};
+
+            // the same logic I have done as before, now with sputum color
+            await ref.update({
+              ["answers.sputum_color"]: sputumValue,
+              updatedAt: FieldValue.serverTimestamp(),
+            });
+
+            logger.info("Auto-set sputum_color due to cough with blood", {
+              sessionId,
+              sputumValue,
+            });
+          }
+        } catch (e) {
+          // I had problems with sputum color in questions, so I have this logging warn
+          // Write and view logs (2026) Firebase.
+          // Available at: https://firebase.google.com/docs/functions/writing-and-viewing-logs (Accessed: March 16, 2026).
+          logger.warn("Failed to auto-set sputum_color from cough_type", {
+            message: (e as any)?.message,
+          });
+        }
+      } else {
+        logger.warn("Client requested SKIP for duplicate question", {questionId});
+      }
+
+      const MIN_Q = 5; // need at least 5 answers before early stop
+      const MAX_Q = 12; // 12 questions max
+      const TOP1 = 0.7; // I need higher confidence for early stop, that is why is 0.7
+      const MARGIN = 0.3;
+
+      // Object.keys() (2026) MDN Web Docs.
+      // Available at: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/keys (Accessed: March 16, 2026).
+      const answeredCount = Object.keys(answers).length;
+
+      if (answeredCount >= MIN_Q) {
+        try {
+          // here I wait for Json from function, diagnosis schema, prompt, timeout and temperature
+          const probeRaw = await llmJson(
+            DIAGNOSIS_SCHEMA,
+            buildDiagnosisPrompt(s.locale, s.selectedAreas, answers),
+            55_000,
+            0.2
+          );
+
+          const probe = normalizeDx(probeRaw);
+          const ranked = Array.isArray(probe.dx) ? probe.dx : [];
+
+          // we get probabilities of each diagnosis
+          const p1 = ranked[0]?.prob ?? 0;
+          const p2 = ranked[1]?.prob ?? 0;
+
+          if (p1 >= TOP1 || (p1 - p2) >= MARGIN || answeredCount >= MAX_Q) {
+            const {patientText, clinicianText, dxPercents, normalized} =
+              makePatientAndClinicianText(tag, probe);
+
+            const diag = {...normalized, patientText, clinicianText, dxPercents};
+
+            await ref.update({
+              phase: "result",
+              provisionalDx: diag.dx,
+              confidence: diag.confidence,
+              updatedAt: FieldValue.serverTimestamp(),
+            });
+
+            res.json({type: "diagnosis", diagnosis: diag});
+            return;
+          }
+        } catch {
+          // here I ignore probe errors, because app still can ask next question
+        }
+      }
+
+      // must ask for chest
+      const must = nextMustAsk(tag, s.selectedAreas || [], answers, answeredCount);
+      if (!isSkip && must) {
+        await ref.update({
+          askedTopics: FieldValue.arrayUnion(must.topic),
+          askedTexts: FieldValue.arrayUnion(must.text),
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+
+        res.json({type: "question", question: must});
+        return;
+      }
+
+      // letting LLM to ask further
+      for (let attempt = 0; attempt < 3; attempt++) {
+        let q = await llmJson(
+          QUESTION_SCHEMA,
+          buildQuestionPrompt(s.locale, s.selectedAreas, answers, s.askedTopics || [], left),
+          55_000,
+          0.5 // questions
+        );
+
+        // if patient never smoked, I skip and have fallback
+        if (shouldSkipQuestion(q, answers, tag)) {
+          const fb = nextFallbackQuestion(tag, s.selectedAreas || [], answers, s.askedTopics || []);
+          if (fb) q = fb;
+        }
+
+        if (q.id === "_stop") {
+          // if here minimum set of answers then I have more fallback questions
+          if (answeredCount < MIN_Q) {
+            const fb = nextFallbackQuestion(tag, s.selectedAreas || [], answers, s.askedTopics || []);
+            if (fb) {
+              q = fb;
+            } else {
+              // asking severity for end
+              q = {
+                id: "severity",
+                topic: "severity",
+                type: "scale",
+                unit: "1-10",
+                text: severityText(tag),
+                options: [],
+              } as any;
+            }
+          } else {
+            const raw = await llmJson(
+              DIAGNOSIS_SCHEMA,
+              buildDiagnosisPrompt(s.locale, s.selectedAreas, answers),
+              55_000,
+              0.2
+            );
+
+            const {patientText, clinicianText, dxPercents, normalized} =
+              makePatientAndClinicianText(tag, raw);
+
+            const diag = {...normalized, patientText, clinicianText, dxPercents};
+
+            await ref.update({
+              phase: "result",
+              provisionalDx: diag.dx,
+              confidence: diag.confidence,
+              updatedAt: FieldValue.serverTimestamp(),
+            });
+
+            res.json({type: "diagnosis", diagnosis: diag});
+            return;
+          }
+        }
+
+        q = sanitizeQuestion(q, tag, s.selectedAreas, s.askedTopics || []);
+
+        // I need to ensure there are no duplicates
+        const texts: string[] = Array.isArray(s.askedTexts) ? s.askedTexts : [];
+        const key = canonicalQuestionKey(q.text);
+        const idDup = Object.prototype.hasOwnProperty.call(answers, q.id);
+        const topicDup = q.topic && (s.askedTopics || []).includes(q.topic);
+        const keyDup = !!key && (s.askedKeys || []).includes(key);
+        const semDup = isSemanticallyDuplicate(q.text, texts);
+        const isDup = idDup || topicDup || keyDup || semDup;
+
+        if (!isDup) {
+          const update: Record<string, any> = {
+            askedTopics: FieldValue.arrayUnion(q.topic),
+            askedTexts: FieldValue.arrayUnion(q.text),
+            updatedAt: FieldValue.serverTimestamp(),
+          };
+
+          if (key) update.askedKeys = FieldValue.arrayUnion(key);
+
+          await ref.update(update);
+          res.json({type: "question", question: q});
+          return;
+        }
+
+        logger.warn("LLM duplicate question, regenerating", {
+          attempt,
+          qid: q.id,
+          topic: q.topic,
+          key,
+          idDup,
+          topicDup,
+          keyDup,
+          semDup,
+        });
+      }
+
+      // if 3 failures then finish with fallback question or result
+      if (answeredCount < MIN_Q) {
+        const fb = nextFallbackQuestion(tag, s.selectedAreas || [], answers, s.askedTopics || []);
+        const q = fb ?? {
+          id: "duration",
+          topic: "duration",
+          type: "text",
+          text: tag === "ru-RU" ? "Как давно это началось?" : "How long has this been going on?",
+          options: [],
+        } as any;
+
+        const update: Record<string, any> = {
+          askedTopics: FieldValue.arrayUnion(q.topic),
+          askedTexts: FieldValue.arrayUnion(q.text),
+          updatedAt: FieldValue.serverTimestamp(),
+        };
+
+        const key2 = canonicalQuestionKey(q.text);
+        if (key2) update["askedKeys"] = FieldValue.arrayUnion(key2);
+
+        await ref.update(update);
+        res.json({type: "question", question: q});
+        return;
+      }
+
+      const raw = await llmJson(
+        DIAGNOSIS_SCHEMA,
+        buildDiagnosisPrompt(s.locale, s.selectedAreas, answers),
+        55_000,
+        0.2
+      );
+
+      const {patientText, clinicianText, dxPercents, normalized} =
+        makePatientAndClinicianText(tag, raw);
+
+      const diag = {...normalized, patientText, clinicianText, dxPercents};
+
+      await ref.update({
+        phase: "result",
+        provisionalDx: diag.dx,
+        confidence: diag.confidence,
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+
+      res.json({type: "diagnosis", diagnosis: diag});
+    } catch (err: any) {
+      logger.error("testPostAnswer ERROR", {
+        msg: err?.message,
+        code: err?.code,
+        details: err?.details,
+        stack: err?.stack?.split("\n").slice(0, 5).join("\n"),
+      });
+
+      res.status(500).json({error: err?.message || "Internal error"});
+    } finally {
+      logger.info("testPostAnswer EXIT");
     }
   }
 );
