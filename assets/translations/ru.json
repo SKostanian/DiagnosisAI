@@ -83,7 +83,9 @@
     "session_expired": "Сессия истекла. Отправьте код заново.",
     "network_error": "Ошибка сети. Попробуйте ещё раз.",
     "captcha_failed": "Проверка reCAPTCHA не пройдена.",
-    "billing_not_enabled": "Для входа по телефону нужен биллинг, если включён reCAPTCHA Enterprise. Отключите его в Firebase Auth или включите Billing в GCP."
+    "billing_not_enabled": "Для входа по телефону нужен биллинг, если включён reCAPTCHA Enterprise. Отключите его в Firebase Auth или включите Billing в GCP.",
+
+    "phone_disabled": "Вход по номеру телефона временно недоступен из-за ограничений SMS-регионов."
 
   },
 

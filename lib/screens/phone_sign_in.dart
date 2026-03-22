@@ -1,3 +1,11 @@
+/* Currently not working due to SMS region policy restrictions.
+
+Test phone numbers have been configured,
+but SMS verification is not being delivered.
+
+The overall issue will be reported in project report.
+*/
+
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -8,11 +16,13 @@ import 'package:diagnosis_ai/app_colors.dart';
 class PhoneSignInScreen extends StatefulWidget {
   final bool isDarkMode;
   final ValueChanged<bool> onThemeChanged;
+
   const PhoneSignInScreen({
     super.key,
     required this.isDarkMode,
     required this.onThemeChanged,
   });
+
   @override
   State<PhoneSignInScreen> createState() => _PhoneSignInScreenState();
 }
@@ -22,7 +32,6 @@ class _PhoneSignInScreenState extends State<PhoneSignInScreen> {
   final _phoneController = TextEditingController();
   final _smsController = TextEditingController();
 
-  // Flags for UI state
   bool _submitted = false;
   bool _codeSent = false;
   bool _sending = false;
@@ -34,7 +43,6 @@ class _PhoneSignInScreenState extends State<PhoneSignInScreen> {
   int _cooldown = 0;
   Timer? _cooldownTimer;
 
-  // Borders, like on email/registration fields
   OutlineInputBorder _enabledBorder(bool isDark) => OutlineInputBorder(
     borderRadius: BorderRadius.circular(12),
     borderSide: BorderSide(
@@ -42,6 +50,7 @@ class _PhoneSignInScreenState extends State<PhoneSignInScreen> {
       width: 1.2,
     ),
   );
+
   OutlineInputBorder _focusedBorder(bool isDark) => OutlineInputBorder(
     borderRadius: BorderRadius.circular(12),
     borderSide: BorderSide(
@@ -58,29 +67,39 @@ class _PhoneSignInScreenState extends State<PhoneSignInScreen> {
     super.dispose();
   }
 
-  // Start the cooldown timer, defaults to 60 seconds
   void _startCooldown([int seconds = 60]) {
     _cooldownTimer?.cancel();
+
+    if (!mounted) return;
     setState(() => _cooldown = seconds);
+
     _cooldownTimer = Timer.periodic(const Duration(seconds: 1), (t) {
-      if (!mounted) return;
-      if (_cooldown <= 0) {
+      if (!mounted) {
         t.cancel();
+        return;
+      }
+
+      if (_cooldown <= 1) {
+        t.cancel();
+        setState(() => _cooldown = 0);
       } else {
         setState(() => _cooldown--);
       }
     });
   }
 
-  // Send verification code via SMS
   Future<void> _sendCode() async {
+    if (!mounted) return;
+
     setState(() {
       _submitted = true;
       _error = null;
     });
+
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
     final phone = _phoneController.text.trim();
+
     setState(() => _sending = true);
 
     try {
@@ -89,19 +108,49 @@ class _PhoneSignInScreenState extends State<PhoneSignInScreen> {
         timeout: const Duration(seconds: 60),
         forceResendingToken: _resendToken,
         verificationCompleted: (PhoneAuthCredential cred) async {
-          // On Android, an auto-code may arrive — try to log in immediately
+          debugPrint('verificationCompleted fired');
+
           try {
+            final userCredential =
             await FirebaseAuth.instance.signInWithCredential(cred);
-            if (mounted) Navigator.of(context).pop();
-          } catch (_) {
-            // ignore errors, user can enter code manually
+
+            debugPrint(
+              'AUTO SIGNED IN: ${userCredential.user?.uid}',
+            );
+
+            if (!mounted) return;
+
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('auth.sign_in_success'.tr()),
+              ),
+            );
+
+            Navigator.of(context).pop(true);
+          } on FirebaseAuthException catch (e) {
+            debugPrint('Auto sign-in FirebaseAuthException: ${e.code} ${e.message}');
+            if (!mounted) return;
+            setState(() {
+              _error = e.message ?? 'auth.unknown_error'.tr();
+            });
+          } catch (e) {
+            debugPrint('Auto sign-in error: $e');
+            if (!mounted) return;
+            setState(() {
+              _error = e.toString();
+            });
           }
         },
         verificationFailed: (FirebaseAuthException e) {
+          debugPrint('verificationFailed: ${e.code} ${e.message}');
+
+          if (!mounted) return;
+
           setState(() {
             final msg = e.message ?? '';
+
             if (msg.contains('BILLING_NOT_ENABLED')) {
-              _error = 'auth.billing_not_enabled'.tr(); // show localized message
+              _error = 'auth.billing_not_enabled'.tr();
             } else if (e.code == 'invalid-phone-number') {
               _error = 'auth.invalid_phone'.tr();
             } else if (e.code == 'too-many-requests') {
@@ -116,68 +165,112 @@ class _PhoneSignInScreenState extends State<PhoneSignInScreen> {
           });
         },
         codeSent: (String verificationId, int? forceResendToken) {
+          debugPrint('codeSent fired');
+
+          if (!mounted) return;
+
           setState(() {
             _verificationId = verificationId;
             _resendToken = forceResendToken;
             _codeSent = true;
+            _error = null;
           });
+
           _startCooldown(60);
+
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('auth.sms_sent'.tr())), // show info
+            SnackBar(content: Text('auth.sms_sent'.tr())),
           );
         },
         codeAutoRetrievalTimeout: (String verificationId) {
-          _verificationId = verificationId; // Save verification ID
+          debugPrint('codeAutoRetrievalTimeout fired');
+          _verificationId = verificationId;
         },
       );
     } catch (e) {
-      setState(() => _error = e.toString()); // show error
+      debugPrint('verifyPhoneNumber error: $e');
+      if (!mounted) return;
+      setState(() => _error = e.toString());
     } finally {
-      if (mounted) setState(() => _sending = false);
+      if (mounted) {
+        setState(() => _sending = false);
+      }
     }
   }
 
-  // Verify user-entered SMS code
   Future<void> _verifyCode() async {
+    if (_verificationId == null || _verificationId!.isEmpty) {
+      setState(() {
+        _error = 'Verification ID is missing. Please request the code again.';
+      });
+      return;
+    }
+
     setState(() {
       _verifying = true;
       _error = null;
     });
+
     final code = _smsController.text.trim();
-    if (code.length < 4) {
+
+    if (code.isEmpty) {
       setState(() {
         _verifying = false;
-        _error = 'auth.sms_code_required'.tr(); // Enter SMS code
+        _error = 'auth.sms_code_required'.tr();
       });
       return;
     }
+
     try {
       final cred = PhoneAuthProvider.credential(
         verificationId: _verificationId!,
         smsCode: code,
       );
+
+      final userCredential =
       await FirebaseAuth.instance.signInWithCredential(cred);
-      if (mounted) Navigator.of(context).pop();
+
+      debugPrint('MANUAL SIGNED IN: ${userCredential.user?.uid}');
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('auth.sign_in_success'.tr()),
+        ),
+      );
+
+      Navigator.of(context).pop(true);
     } on FirebaseAuthException catch (e) {
+      debugPrint('_verifyCode FirebaseAuthException: ${e.code} ${e.message}');
+
+      if (!mounted) return;
+
       setState(() {
         if (e.code == 'invalid-verification-code') {
-          _error = 'auth.sms_code_invalid'.tr(); // Invalid code
+          _error = 'auth.sms_code_invalid'.tr();
         } else if (e.code == 'session-expired') {
-          _error = 'auth.session_expired'.tr(); // Session expired
+          _error = 'auth.session_expired'.tr();
         } else {
           _error = e.message ?? 'auth.unknown_error'.tr();
         }
       });
     } catch (e) {
-      setState(() => _error = e.toString()); // show error
+      debugPrint('_verifyCode error: $e');
+
+      if (!mounted) return;
+      setState(() => _error = e.toString());
     } finally {
-      if (mounted) setState(() => _verifying = false);
+      if (mounted) {
+        setState(() => _verifying = false);
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = widget.isDarkMode;
+
     final gradient = isDark
         ? LinearGradient(
       begin: Alignment.topLeft,
@@ -189,7 +282,9 @@ class _PhoneSignInScreenState extends State<PhoneSignInScreen> {
       end: Alignment.bottomRight,
       colors: [Color(0xFF63E6AB), Color(0xFFD2F4FF)],
     );
+
     const errStyle = TextStyle(fontSize: 14, height: 1.1);
+
     return Scaffold(
       extendBodyBehindAppBar: true,
       endDrawer: AppDrawer(
@@ -228,7 +323,11 @@ class _PhoneSignInScreenState extends State<PhoneSignInScreen> {
                       ),
                     ],
                   ),
-                  child: const Icon(Icons.menu, color: Color(0xFF024EE1), size: 22),
+                  child: const Icon(
+                    Icons.menu,
+                    color: Color(0xFF024EE1),
+                    size: 22,
+                  ),
                 ),
               ),
             ),
@@ -237,21 +336,20 @@ class _PhoneSignInScreenState extends State<PhoneSignInScreen> {
       ),
       body: Stack(
         children: [
-          // background
           Container(decoration: BoxDecoration(gradient: gradient)),
-          // frame overlay image
           Positioned.fill(
             child: IgnorePointer(
               child: Transform.scale(
                 scale: 1.12,
                 child: Image.asset(
-                  isDark ? 'assets/frame_dark.png' : 'assets/frame_light.png',
+                  isDark
+                      ? 'assets/frame_dark.png'
+                      : 'assets/frame_light.png',
                   fit: BoxFit.fill,
                 ),
               ),
             ),
           ),
-          // content
           SafeArea(
             child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
@@ -260,14 +358,44 @@ class _PhoneSignInScreenState extends State<PhoneSignInScreen> {
                   constraints: const BoxConstraints(maxWidth: 420),
                   child: Form(
                     key: _formKey,
-                    autovalidateMode:
-                    _submitted ? AutovalidateMode.always : AutovalidateMode.disabled,
+                    autovalidateMode: _submitted
+                        ? AutovalidateMode.always
+                        : AutovalidateMode.disabled,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         const SizedBox(height: 8),
-                        // Title
+
+
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 16),
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.orange, width: 1.2),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+
+                              const Icon(Icons.warning_amber, color: Colors.orange),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  'auth.phone_disabled'.tr(),
+                                  style: TextStyle(
+                                    color: isDark ? Colors.orange.shade200 : Colors.orange.shade900,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
                         Text(
                           'auth.sign_in_title'.tr(),
                           style: TextStyle(
@@ -278,7 +406,6 @@ class _PhoneSignInScreenState extends State<PhoneSignInScreen> {
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 16),
-                        // Phone number
                         TextFormField(
                           controller: _phoneController,
                           keyboardType: TextInputType.phone,
@@ -288,22 +415,31 @@ class _PhoneSignInScreenState extends State<PhoneSignInScreen> {
                           ),
                           decoration: InputDecoration(
                             labelText: 'auth.phone_number'.tr(),
-                            hintText: '+1 555 123 4567',
+                            hintText: '+1234567890',
                             filled: true,
-                            fillColor: isDark ? const Color(0xFF2C2C2E) : Colors.white,
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+                            fillColor: isDark
+                                ? const Color(0xFF2C2C2E)
+                                : Colors.white,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 18,
+                            ),
                             enabledBorder: _enabledBorder(isDark),
                             focusedBorder: _focusedBorder(isDark),
                             errorBorder: const OutlineInputBorder(
-                              borderRadius: BorderRadius.all(Radius.circular(12)),
+                              borderRadius:
+                              BorderRadius.all(Radius.circular(12)),
                               borderSide: BorderSide(color: Colors.red),
                             ),
                             focusedErrorBorder: const OutlineInputBorder(
-                              borderRadius: BorderRadius.all(Radius.circular(12)),
+                              borderRadius:
+                              BorderRadius.all(Radius.circular(12)),
                               borderSide: BorderSide(color: Colors.red),
                             ),
                             labelStyle: TextStyle(
-                              color: isDark ? Colors.white.withOpacity(0.85) : Colors.black54,
+                              color: isDark
+                                  ? Colors.white.withOpacity(0.85)
+                                  : Colors.black54,
                             ),
                             errorMaxLines: 2,
                             errorStyle: errStyle,
@@ -312,15 +448,20 @@ class _PhoneSignInScreenState extends State<PhoneSignInScreen> {
                           ),
                           validator: (v) {
                             final value = v?.trim() ?? '';
-                            if (value.isEmpty) return 'auth.phone_required'.tr();
-                            // Basic check for E.164 format
+                            if (value.isEmpty) {
+                              return 'auth.phone_required'.tr();
+                            }
+
+                            // for regex here number needs to have "+" and 6 numbers
                             final rx = RegExp(r'^\+\d{6,}$');
-                            if (!rx.hasMatch(value)) return 'auth.invalid_phone'.tr();
+                            if (!rx.hasMatch(value)) {
+                              return 'auth.invalid_phone'.tr();
+                            }
+
                             return null;
                           },
                         ),
                         const SizedBox(height: 18),
-                        // SMS code input appears after sending the code
                         if (_codeSent) ...[
                           TextFormField(
                             controller: _smsController,
@@ -332,20 +473,29 @@ class _PhoneSignInScreenState extends State<PhoneSignInScreen> {
                             decoration: InputDecoration(
                               labelText: 'auth.sms_code'.tr(),
                               filled: true,
-                              fillColor: isDark ? const Color(0xFF2C2C2E) : Colors.white,
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+                              fillColor: isDark
+                                  ? const Color(0xFF2C2C2E)
+                                  : Colors.white,
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 18,
+                              ),
                               enabledBorder: _enabledBorder(isDark),
                               focusedBorder: _focusedBorder(isDark),
                               errorBorder: const OutlineInputBorder(
-                                borderRadius: BorderRadius.all(Radius.circular(12)),
+                                borderRadius:
+                                BorderRadius.all(Radius.circular(12)),
                                 borderSide: BorderSide(color: Colors.red),
                               ),
                               focusedErrorBorder: const OutlineInputBorder(
-                                borderRadius: BorderRadius.all(Radius.circular(12)),
+                                borderRadius:
+                                BorderRadius.all(Radius.circular(12)),
                                 borderSide: BorderSide(color: Colors.red),
                               ),
                               labelStyle: TextStyle(
-                                color: isDark ? Colors.white.withOpacity(0.85) : Colors.black54,
+                                color: isDark
+                                    ? Colors.white.withOpacity(0.85)
+                                    : Colors.black54,
                               ),
                               errorMaxLines: 2,
                               errorStyle: errStyle,
@@ -355,37 +505,50 @@ class _PhoneSignInScreenState extends State<PhoneSignInScreen> {
                             validator: (v) {
                               if (!_codeSent) return null;
                               final value = v?.trim() ?? '';
-                              if (value.isEmpty) return 'auth.sms_code_required'.tr();
-                              return null; // validate SMS code if present
+                              if (value.isEmpty) {
+                                return 'auth.sms_code_required'.tr();
+                              }
+                              return null;
                             },
                           ),
                           const SizedBox(height: 12),
-                          // Resend button
                           OutlinedButton(
                             onPressed:
                             (_sending || _cooldown > 0) ? null : _sendCode,
                             style: OutlinedButton.styleFrom(
                               side: BorderSide(
                                 color: (_sending || _cooldown > 0)
-                                    ? (isDark ? Colors.white24 : Colors.black26)
-                                    : (isDark ? Colors.white70 : const Color(0xFF024EE1)),
+                                    ? (isDark
+                                    ? Colors.white24
+                                    : Colors.black26)
+                                    : (isDark
+                                    ? Colors.white70
+                                    : const Color(0xFF024EE1)),
                                 width: 1.4,
                               ),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 14,
+                                horizontal: 16,
+                              ),
                             ),
                             child: Text(
                               _cooldown > 0
-                                  ? 'verify.resend_in'.tr(args: [_cooldown.toString()])
+                                  ? 'verify.resend_in'
+                                  .tr(args: [_cooldown.toString()])
                                   : 'auth.resend_code'.tr(),
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
                                 color: (_sending || _cooldown > 0)
-                                    ? (isDark ? Colors.white54 : Colors.black45)
-                                    : (isDark ? Colors.white : const Color(0xFF024EE1)),
+                                    ? (isDark
+                                    ? Colors.white54
+                                    : Colors.black45)
+                                    : (isDark
+                                    ? Colors.white
+                                    : const Color(0xFF024EE1)),
                               ),
                             ),
                           ),
@@ -403,7 +566,6 @@ class _PhoneSignInScreenState extends State<PhoneSignInScreen> {
                           ),
                         ],
                         const SizedBox(height: 16),
-                        // Sign in / Verify button
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton(
@@ -419,12 +581,19 @@ class _PhoneSignInScreenState extends State<PhoneSignInScreen> {
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(14),
                               ),
-                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                                vertical: 16,
+                              ),
                             ),
                             child: Text(
                               _codeSent
-                                  ? (_verifying ? 'auth.verifying'.tr() : 'auth.verify_and_sign_in'.tr())
-                                  : (_sending ? 'auth.sending'.tr() : 'auth.send_code'.tr()),
+                                  ? (_verifying
+                                  ? 'auth.verifying'.tr()
+                                  : 'auth.verify_and_sign_in'.tr())
+                                  : (_sending
+                                  ? 'auth.sending'.tr()
+                                  : 'auth.send_code'.tr()),
                               style: const TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w600,
@@ -433,7 +602,6 @@ class _PhoneSignInScreenState extends State<PhoneSignInScreen> {
                           ),
                         ),
                         const SizedBox(height: 16),
-                        // Back button
                         TextButton.icon(
                           onPressed: () => Navigator.of(context).pop(),
                           icon: const Icon(Icons.arrow_back),

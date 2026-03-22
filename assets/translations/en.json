@@ -82,7 +82,9 @@
     "session_expired": "Session expired. Please resend the code.",
     "network_error": "Network error. Try again.",
     "captcha_failed": "reCAPTCHA check failed. Try again.",
-    "billing_not_enabled": "Phone sign-in needs Cloud Billing when reCAPTCHA Enterprise is enabled. Disable it in Firebase Auth settings or enable Billing."
+    "billing_not_enabled": "Phone sign-in needs Cloud Billing when reCAPTCHA Enterprise is enabled. Disable it in Firebase Auth settings or enable Billing.",
+
+    "phone_disabled": "Phone sign-in is temporarily unavailable due to SMS region restrictions."
   },
 
   "consent": {

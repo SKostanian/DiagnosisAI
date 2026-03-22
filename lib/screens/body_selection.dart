@@ -227,7 +227,7 @@ class _BodyPartSelectionScreenState extends State<BodyPartSelectionScreen> {
                 }),
                 const SizedBox(height: 10),
                 Text(
-                  'DiagnosisAI © 2025. All rights reserved.',
+                  'DiagnosisAI © 2026. All rights reserved.',
                   style: TextStyle(
                     fontSize: 12,
                     color: isDarkMode ? Colors.white70 : AppColors.lightPrimary,
@@ -277,14 +277,26 @@ class _BodyTileState extends State<_BodyTile> {
     final baseBg = widget.isDark ? const Color(0xFF1F1F22) : Colors.white;
     final selectedTint = accent.withOpacity(.12);
 
+    // Flutter Artist (2024) Animated scale | flutter. Youtube.
+    // Available at: https://www.youtube.com/watch?v=mIPlugtbi-s&t=26s (Accessed: March 22, 2026).
+
+    // I used here the same as in video, but my scale value is static,
+    // and milliseconds, I believe it is more professional
     return AnimatedScale(
       duration: const Duration(milliseconds: 120),
+      // I have decrease -2, as it looked cool
       scale: _pressed ? 0.98 : 1.0,
+
       child: Material(
         color: Colors.transparent,
+        // if true then elevation on 4
         elevation: widget.selected ? 4 : 1,
         shadowColor: Colors.black.withOpacity(0.15),
         borderRadius: BorderRadius.circular(14),
+
+        // I used inkwell for different taps
+        // Flutter - InkWell widget (2021) GeeksforGeeks.
+        // Available at: https://www.geeksforgeeks.org/flutter/flutter-inkwell-widget/ (Accessed: March 22, 2026).
         child: InkWell(
           onTap: widget.onTap,
           onTapDown: (_) => setState(() => _pressed = true),
@@ -293,6 +305,7 @@ class _BodyTileState extends State<_BodyTile> {
           borderRadius: BorderRadius.circular(14),
           splashColor: accent.withOpacity(0.12),
           highlightColor: Colors.transparent,
+          // ink here provides surface for inkwell
           child: Ink(
             decoration: BoxDecoration(
               color: baseBg,
@@ -330,7 +343,13 @@ class _BodyTileState extends State<_BodyTile> {
                         widget.label,
                         textAlign: TextAlign.center,
                         maxLines: 2,
+                        // Flutter - TextOverFlow (2022) GeeksforGeeks.
+                        // Available at: https://www.geeksforgeeks.org/flutter/flutter-textoverflow/ (Accessed: March 22, 2026).
                         overflow: TextOverflow.ellipsis,
+
+                        // (2024) Stackoverflow.com.
+                        // Available at: https://stackoverflow.com/a/77730517 (Accessed: March 22, 2026).
+                        // softwrap breaks to new line
                         softWrap: true,
                         style: TextStyle(
                           height: 1.1,
