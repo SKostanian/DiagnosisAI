@@ -71,4 +71,11 @@ flutter run
 ```
 To run the flutter locally and see the DiagnosisAI application on emulator.
 
-If error is happening during 1st launch, please try again and the issue resolves.
+## 6) In case of Firebase emulator error (VERY IMPOORTANT).
+Please run 
+```
+taskkill /F /IM java.exe
+```
+try again to launch: `'firebase emulators:start --only "functions,firestore,auth"` and type the commands 5 in new terminal.
+
+In case of any errors or unexpected behaviour, please contact here: `SKostanian@uclan.ac.uk`.
