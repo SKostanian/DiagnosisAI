@@ -3,6 +3,7 @@
 It is an AI-powered health triage assistant built with Flutter, Firebase, Cloud Functions, and Vertex AI.
 
 This application helps users describe their symptoms and receive the AI-assisted triage guidance through an interactive chat interface.
+Currently it does not have a medical license and all the diagnoses provided in code and in implementation are experimental. 
 
 # Setup:
 
