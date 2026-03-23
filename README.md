@@ -71,11 +71,11 @@ flutter run
 ```
 To run the flutter locally and see the DiagnosisAI application on emulator.
 
-## 6) In case of Firebase emulator error (VERY IMPOORTANT).
-Please run 
+## 6) In case of Firebase emulator error (VERY IMPORTANT).
+Please run in Powershell window
 ```
 taskkill /F /IM java.exe
 ```
-try again to launch: `'firebase emulators:start --only "functions,firestore,auth"` and type the commands 5 in new terminal.
+try again to launch: `'firebase emulators:start --only "functions,firestore,auth"` and type the flutter commands on 5 in new terminal.
 
 In case of any errors or unexpected behaviour, please contact here: `SKostanian@uclan.ac.uk`.
