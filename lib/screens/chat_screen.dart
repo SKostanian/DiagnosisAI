@@ -373,22 +373,41 @@ class _TriageChatScreenState extends State<TriageChatScreen> {
         questionMeta: _currentQ,
       );
 
-      // limit just in casee
-      _answersGiven = (_answersGiven + 1).clamp(0, 1000000);
+      final isValidationRetry =
+          res.validationError != null && res.validationError!.isNotEmpty;
+
+      if (!isValidationRetry) {
+        _answersGiven = (_answersGiven + 1).clamp(0, 1000000);
+      }
 
       if (res.question != null) {
         final q = res.question!;
-        if (!_askedIds.contains(q.id)) {
-          _askedIds.add(q.id);
-          _currentQ = q;
-          _finalDx = null;
-          _bubbles.add(_Bubble.bot(q.text));
-          _resetAnswerUi();
+        _currentQ = q;
+        _finalDx = null;
+
+        if (isValidationRetry) {
+          _error = res.validationError;
+
+          // remove last user bubble when answer wasnot accepted
+          if (_bubbles.isNotEmpty && _bubbles.last.isUser) {
+            _bubbles.removeLast();
+          }
+
           _scrollToBottom();
         } else {
-          debugPrint('Duplicate question ignored: ${q.id}');
+          _error = null;
+
+          if (!_askedIds.contains(q.id)) {
+            _askedIds.add(q.id);
+            _bubbles.add(_Bubble.bot(q.text));
+            _resetAnswerUi();
+            _scrollToBottom();
+          } else {
+            debugPrint('Duplicate question ignored: ${q.id}');
+          }
         }
       } else {
+        _error = null;
         _currentQ = null;
         _finalDx = res.diagnosis;
         final displayText = _finalDx!.patientText.isNotEmpty

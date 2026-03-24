@@ -187,6 +187,26 @@ function normalizeNumericValue(v: any, clamp0to10 = true) {
   return v;
 }
 
+function isNumericQuestion(questionId: string): boolean {
+  return questionId === "severity";
+}
+
+function normalizeAnswerValue(questionId: string, value: any, tag: string): any {
+  if (isNumericQuestion(questionId)) {
+    return normalizeNumericValue(value, true);
+  }
+
+  if (typeof value === "string") {
+    return value.trim();
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((v) => typeof v === "string" ? v.trim() : v);
+  }
+
+  return value;
+}
+
 // normalization of diagnoses
 function normalizeDx(diag: any, areas?: string[]) {
     // extract the array of diagnoses if present, ir use an empty array
@@ -314,6 +334,96 @@ function buildFirstTurnQuality(tag: string) {
     unit: undefined,
     topic: "quality",
   };
+}
+
+// I added it for no validation
+function getExclusiveMultiValues(questionId: string, tag: string): string[] | null {
+  const map: Record<string, {ru: string[]; en: string[]}> = {
+    chronic_conditions: {
+      ru: ["Нет"],
+      en: ["None"],
+    },
+    heart_disease_details: {
+      ru: ["Нет"],
+      en: ["No"],
+    },
+    medications: {
+      ru: ["Не принимаю"],
+      en: ["None"],
+    },
+    pe_risk_factors: {
+      ru: ["Нет"],
+      en: ["None"],
+    },
+    family_history: {
+      ru: ["Нет значимого"],
+      en: ["None significant"],
+    },
+    cardiac_symptoms: {
+      ru: ["Нет"],
+      en: ["None"],
+    },
+    gi_symptoms: {
+      ru: ["Нет"],
+      en: ["None"],
+    },
+    radiation: {
+      ru: ["Нет распространения"],
+      en: ["No radiation"],
+    },
+  };
+
+  const cfg = map[questionId];
+  if (!cfg) return null;
+  return tag === "ru-RU" ? cfg.ru : cfg.en;
+}
+
+function hasInvalidExclusiveMultiSelection(
+  questionId: string,
+  value: any,
+  tag: string
+): boolean {
+  if (!Array.isArray(value)) return false;
+
+  const exclusiveValues = getExclusiveMultiValues(questionId, tag);
+  if (!exclusiveValues || exclusiveValues.length === 0) return false;
+
+  const pickedExclusive = value.filter((v) => exclusiveValues.includes(v));
+  return pickedExclusive.length > 0 && value.length > pickedExclusive.length;
+}
+
+function buildExclusiveMultiValidationMessage(questionId: string, tag: string): string {
+  const exclusiveValues = getExclusiveMultiValues(questionId, tag) || [];
+
+  const exclusiveLabel = exclusiveValues[0] || (tag === "ru-RU" ? "Нет" : "None");
+
+  return tag === "ru-RU"
+    ? `Нельзя выбирать "${exclusiveLabel}" вместе с другими вариантами. Пожалуйста, выберите что-то одно.`
+    : `You cannot select "${exclusiveLabel}" together with other options. Please choose only one.`;
+}
+
+function findMustAskQuestionById(
+  tag: string,
+  areas: string[],
+  questionId: string
+) {
+  const s = areas.join(" ").toLowerCase();
+    const isChest = /(chest|thorax|rib|ribs|breath|lung|resp|pleur|груд|дых)/.test(s);
+
+    if (isChest) {
+      const q = MUST_ASK_BY_AREA.chest.find((item) => item.id === questionId);
+      if (!q) return null;
+
+    return {
+      id: q.id,
+      text: tag === "ru-RU" ? q.textRU : q.textEN,
+      type: q.type,
+      options: tag === "ru-RU" ? q.optionsRU : q.optionsEN,
+      topic: q.topic,
+    };
+  }
+
+  return null;
 }
 
 // I have extended diagnosis dictionary for chest region with anamnesis consideration
@@ -526,7 +636,7 @@ const MUST_ASK_BY_AREA = {
   chest: [
     // Basic symptom questions
     {
-      id: "onset_nature", topic: "duration",
+      id: "onset_nature", topic: "onset_nature",
       textRU: "Как начались симптомы?",
       textEN: "How did the symptoms start?",
       type: "single" as const,
@@ -534,14 +644,14 @@ const MUST_ASK_BY_AREA = {
       optionsEN: ["Suddenly", "Gradually"],
     },
     {
-      id: "pleuritic", topic: "associated",
+      id: "pleuritic", topic: "pleuritic",
       textRU: "Боль усиливается при глубоком вдохе или кашле?",
       textEN: "Does the pain get worse when you breathe deeply or cough?",
       type: "single" as const,
       optionsRU: ["Да", "Нет"], optionsEN: ["Yes", "No"],
     },
     {
-      id: "radiation", topic: "associated",
+      id: "radiation", topic: "radiation",
       textRU: "Куда распространяется боль?",
       textEN: "Where does the pain radiate to?",
       type: "multi" as const,
@@ -549,7 +659,7 @@ const MUST_ASK_BY_AREA = {
       optionsEN: ["No radiation", "Left arm", "Right arm", "Jaw/neck", "Back"],
     },
     {
-      id: "exertion_relation", topic: "triggers",
+      id: "exertion_relation", topic: "exertion_relation",
       textRU: "Связана ли боль с физической нагрузкой?",
       textEN: "Is the pain related to physical activity?",
       type: "single" as const,
@@ -557,7 +667,7 @@ const MUST_ASK_BY_AREA = {
       optionsEN: ["Yes—worse on exertion", "No", "Unsure"],
     },
     {
-      id: "relief_rest", topic: "triggers",
+      id: "relief_rest", topic: "relief_rest",
       textRU: "Уменьшается ли боль в покое или после нитроглицерина?",
       textEN: "Does the pain improve with rest or nitroglycerin?",
       type: "single" as const,
@@ -566,21 +676,21 @@ const MUST_ASK_BY_AREA = {
       skipIf: {dependsOn: "exertion_relation", values: ["Нет", "No"]},
     },
     {
-      id: "positional", topic: "triggers",
+      id: "positional", topic: "positional",
       textRU: "Становится ли хуже лёжа и лучше сидя?",
       textEN: "Is it worse when lying flat and better when sitting up?",
       type: "single" as const,
       optionsRU: ["Да", "Нет"], optionsEN: ["Yes", "No"],
     },
     {
-      id: "palpation_tenderness", topic: "associated",
+      id: "palpation_tenderness", topic: "palpation_tenderness",
       textRU: "Боль усиливается при надавливании на грудную клетку?",
       textEN: "Is the area tender when pressed (chest wall)?",
       type: "single" as const,
       optionsRU: ["Да", "Нет"], optionsEN: ["Yes", "No"],
     },
     {
-      id: "cough_type", topic: "associated",
+      id: "cough_type", topic: "cough_type",
       textRU: "Какой у вас кашель?",
       textEN: "What kind of cough do you have?",
       type: "single" as const,
@@ -588,7 +698,7 @@ const MUST_ASK_BY_AREA = {
       optionsEN: ["No cough", "Dry cough", "Productive cough", "Cough with blood"],
     },
     {
-      id: "cough_duration", topic: "duration",
+      id: "cough_duration", topic: "cough_duration",
       textRU: "Сколько длится кашель?",
       textEN: "How long have you had the cough?",
       type: "single" as const,
@@ -597,7 +707,7 @@ const MUST_ASK_BY_AREA = {
       skipIf: {dependsOn: "cough_type", values: ["Нет кашля", "No cough"]},
     },
     {
-      id: "sputum_color", topic: "associated",
+      id: "sputum_color", topic: "sputum_color",
       textRU: "Какого цвета мокрота?",
       textEN: "What color is your sputum when you cough?",
       type: "single" as const,
@@ -606,7 +716,7 @@ const MUST_ASK_BY_AREA = {
       skipIf: {dependsOn: "cough_type", values: ["Нет кашля", "Сухой кашель", "No cough", "Dry cough"]},
     },
     {
-      id: "dyspnea_type", topic: "associated",
+      id: "dyspnea_type", topic: "dyspnea_type",
       textRU: "Какая у вас одышка?",
       textEN: "What type of shortness of breath do you have?",
       type: "single" as const,
@@ -616,7 +726,7 @@ const MUST_ASK_BY_AREA = {
 
     // Extended history and demographics
     {
-      id: "age_group", topic: "demographics",
+      id: "age_group", topic: "age_group",
       textRU: "Ваш возраст?",
       textEN: "What is your age group?",
       type: "single" as const,
@@ -626,7 +736,7 @@ const MUST_ASK_BY_AREA = {
 
     // Smoking and harmful habits
     {
-      id: "smoking_history", topic: "risk_factors",
+      id: "smoking_history", topic: "smoking_history",
       textRU: "Ваш статус курения?",
       textEN: "What is your smoking status?",
       type: "single" as const,
@@ -634,7 +744,7 @@ const MUST_ASK_BY_AREA = {
       optionsEN: ["I have never smoked", "I used to smoke but quit", "I smoke less than 1 pack per day", "I smoke 1 pack or more per day"],
     },
     {
-      id: "smoking_duration", topic: "risk_factors",
+      id: "smoking_duration", topic: "smoking_duration",
       textRU: "Стаж курения?",
       textEN: "How long have you been smoking?",
       type: "single" as const,
@@ -645,15 +755,15 @@ const MUST_ASK_BY_AREA = {
 
     // Chronic diseases
     {
-      id: "chronic_conditions", topic: "medical_history",
-      textRU: "Есть хронические заболевания?",
+      id: "chronic_conditions", topic: "chronic_conditions",
+      textRU: "Есть ли у вас хронические заболевания?",
       textEN: "Do you have any chronic medical conditions?",
       type: "multi" as const,
       optionsRU: ["Нет", "Астма", "ХОБЛ", "ИБС/стенокардия", "Артериальная гипертензия", "Сахарный диабет", "Онкология", "Заболевания лёгких"],
       optionsEN: ["None", "Asthma", "COPD", "CAD/angina", "Hypertension", "Diabetes", "Cancer history", "Lung disease"],
     },
     {
-      id: "heart_disease_details", topic: "medical_history",
+      id: "heart_disease_details", topic: "heart_disease_details",
       textRU: "Есть ли у вас сердечно-сосудистые заболевания?",
       textEN: "Do you have any heart conditions?",
       type: "multi" as const,
@@ -673,7 +783,7 @@ const MUST_ASK_BY_AREA = {
 
     // Pulmonary embolism risk factors
     {
-      id: "pe_risk_factors", topic: "risk_factors",
+      id: "pe_risk_factors", topic: "pe_risk_factors",
       textRU: "Факторы риска тромбоэмболии?",
       textEN: "Do you have any risk factors for blood clots in the lungs?",
       type: "multi" as const,
@@ -693,7 +803,7 @@ const MUST_ASK_BY_AREA = {
 
     // Additional symptoms
     {
-      id: "fever_pattern", topic: "associated",
+      id: "fever_pattern", topic: "fever_pattern",
       textRU: "Характер лихорадки?",
       textEN: "Do you have any fever, and if so, what kind?",
       type: "single" as const,
@@ -701,7 +811,7 @@ const MUST_ASK_BY_AREA = {
       optionsEN: ["No fever", "Low-grade (37-38°C)", "Moderate (38-39°C)", "High (More than 39°C)", "With chills"],
     },
     {
-      id: "fever_degree", topic: "associated",
+      id: "fever_degree", topic: "fever_degree",
       textRU: "Какая была максимальная температура?",
       textEN: "What was the highest temperature?",
       type: "single" as const,
@@ -710,7 +820,7 @@ const MUST_ASK_BY_AREA = {
       skipIf: {dependsOn: "fever_pattern", values: ["Нет температуры", "No fever"]},
     },
     {
-      id: "cardiac_symptoms", topic: "associated",
+      id: "cardiac_symptoms", topic: "cardiac_symptoms",
       textRU: "Сердечные симптомы?",
       textEN: "Are you experiencing any heart-related symptoms?",
       type: "multi" as const,
@@ -718,7 +828,7 @@ const MUST_ASK_BY_AREA = {
       optionsEN: ["None", "Palpitations", "Irregular heartbeat", "Left arm pain", "Jaw pain", "Cold sweats", "Syncope"],
     },
     {
-      id: "gi_symptoms", topic: "associated",
+      id: "gi_symptoms", topic: "gi_symptoms",
       textRU: "ЖКТ симптомы?",
       textEN: "Do you have any stomach or digestive symptoms?",
       type: "multi" as const,
@@ -786,7 +896,8 @@ function nextMustAsk(
   const s = areas.join(" ").toLowerCase();
   const isChest = /(chest|thorax|rib|ribs|breath|lung|resp|pleur|груд|дых)/.test(s);
   if (!isChest) return null;
-  if (answeredCount < 2) return null;
+
+  if (answeredCount < 1) return null;
 
   // Array.Prototype.Slice() (2026) MDN Web Docs. Available at: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/slice (Accessed: March 12, 2026).
   const list = MUST_ASK_BY_AREA.chest.slice();
@@ -984,38 +1095,62 @@ function buildQuestionPrompt(
   const tag = normalizeLocaleTag(locale);
 
 // I have this prompt for Vertex AI questions
-  return `
+
+// I edited, on how to have more effective prompt
+return `
 You are a warm, friendly, and empathetic health assistant.
-Your goal is to gather the patient's key symptoms in a gentle and supportive manner.
+Your goal is to gently collect key symptom information.
 
-Ask ONE question at a time, then STOP.
-Keep your tone short, clear, and patient-friendly.
-Write in "${tag}".
-Use BUTTON-LIKE responses where appropriate to make answering easier.
+CRITICAL RULES:
+- Ask EXACTLY ONE question, then STOP.
+- Keep it short, clear, and easy to answer.
+- Write in "${tag}".
+- Prefer structured answers (buttons, scales, multi-select).
+- NEVER ask about topics that are already covered.
+- NEVER repeat or rephrase previously asked questions.
+- DO NOT ask about location (already known).
 
-Treat "location" as already known from selectedAreas, so do NOT ask "Where is the pain?".
+QUESTION PRIORITY (ask ONLY missing information in this order):
+1) quality (single choice)
+2) severity (scale 1-10)
+3) duration/onset (text)
+4) associated symptoms (multi-select)
+5) triggers (multi-select)
 
-If this is the FIRST turn, prefer asking about the QUALITY of symptoms as a single-choice question with natural options.
+FIRST TURN RULE:
+- If no topics asked yet - MUST ask about symptom QUALITY using single-choice options.
 
-Order your questions to ask ONLY what is still unknown, following this priority:
-1) quality -> single-choice with friendly options
-2) severity (1-10) -> number/scale (unit "1-10")
-3) duration/onset -> short text prompt // NOTE: to have a duration in hours/days, user prompt validation
-4) associated symptoms -> MULTI-SELECT with domain-specific options
-5) triggers -> MULTI-SELECT
+STOP CONDITIONS:
+- If no meaningful new question can improve understanding - STOP
+- If questionsLeft <= 0 - STOP
 
-Stop early if you determine the likely diagnosis has high confidence (expected confidence ≥0.7)
-or if there’s nothing more relevant to ask.
+OUTPUT FORMAT:
+Return STRICT JSON only (no text outside JSON).
 
-Context for reference (do not include in question):
+QUESTION FORMAT:
+{
+  "id": string,
+  "text": string,
+  "type": "single" | "multi" | "scale" | "text",
+  "topic": "quality" | "severity" | "duration" | "associated" | "triggers" | "stop",
+  "options": string[] (only for single/multi),
+  "unit": string (only for scale)
+}
+
+SPECIAL RULES:
+- For "quality" - use friendly natural options (e.g. sharp, dull, burning, pressure)
+- For "severity" - use type="scale" and unit="1-10"
+- For "associated" and "triggers" - ALWAYS use multi-select with relevant options
+- Avoid medical jargon
+
+CONTEXT (DO NOT INCLUDE IN OUTPUT):
 - body areas: ${JSON.stringify(selectedAreas)}
 - known answers: ${JSON.stringify(answers)}
-- already covered topics: ${JSON.stringify(askedTopics)}
+- asked topics: ${JSON.stringify(askedTopics)}
 - questions remaining: ${questionsLeft}
 
-Return STRICT JSON adhering to QUESTION_SCHEMA.
-
-If no further relevant questions can be asked, return:
+FINAL RULE:
+If no valid question remains, return EXACTLY:
 {"id":"_stop","text":"_stop","type":"text","topic":"stop"}
 `.trim();
 }
@@ -1341,11 +1476,25 @@ export const postAnswer = onCall<{ sessionId: string; questionId: string; value:
       let left: number = typeof s.questionsLeft === "number" ? s.questionsLeft : 8;
 
       if (!isSkip) {
-        // get only number from user values if possible
-        const normalizedValue =
-          (typeof value === "number" || typeof value === "string") ?
-            normalizeNumericValue(value, true) :
-            value;
+        const normalizedValue = normalizeAnswerValue(questionId, value, tag);
+
+        if (hasInvalidExclusiveMultiSelection(questionId, normalizedValue, tag)) {
+          const sameQuestion =
+            findMustAskQuestionById(tag, s.selectedAreas || [], questionId) ||
+            {
+              id: questionId,
+              text: tag === "ru-RU" ? "Пожалуйста, исправьте выбор." : "Please correct your selection.",
+              type: "multi",
+              options: Array.isArray(normalizedValue) ? normalizedValue : [],
+              topic: questionId,
+            };
+
+          return {
+            type: "question",
+            question: sameQuestion,
+            validationError: buildExclusiveMultiValidationMessage(questionId, tag),
+          };
+        }
 
         answers = {...answers, [questionId]: normalizedValue};
         left = Math.max(0, left - 1);
@@ -1754,11 +1903,26 @@ export const testPostAnswer = onRequest(
       let left: number = typeof s.questionsLeft === "number" ? s.questionsLeft : 8;
 
       if (!isSkip) {
-        // get only number from user values if possible
-        const normalizedValue =
-          (typeof value === "number" || typeof value === "string") ?
-            normalizeNumericValue(value, true) :
-            value;
+        const normalizedValue = normalizeAnswerValue(questionId, value, tag);
+
+        if (hasInvalidExclusiveMultiSelection(questionId, normalizedValue, tag)) {
+          const sameQuestion =
+            findMustAskQuestionById(tag, s.selectedAreas || [], questionId) ||
+            {
+              id: questionId,
+              text: tag === "ru-RU" ? "Пожалуйста, исправьте выбор." : "Please correct your selection.",
+              type: "multi",
+              options: Array.isArray(normalizedValue) ? normalizedValue : [],
+              topic: questionId,
+            };
+
+          res.json({
+            type: "question",
+            question: sameQuestion,
+            validationError: buildExclusiveMultiValidationMessage(questionId, tag),
+          });
+          return;
+        }
 
         answers = {...answers, [questionId]: normalizedValue};
         left = Math.max(0, left - 1);
@@ -2025,3 +2189,4 @@ export const testPostAnswer = onRequest(
     }
   }
 );
+

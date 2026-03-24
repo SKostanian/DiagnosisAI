@@ -114,15 +114,25 @@ class SessionApi {
   }
 
   // parse step response (after answer)
-  ({TriageQuestion? question, TriageDiagnosis? diagnosis}) _parseStep(dynamic raw) {
+  ({TriageQuestion? question, TriageDiagnosis? diagnosis, String? validationError}) _parseStep(dynamic raw) {
     final data = _asMapSD(raw);
     final type = (data['type'] ?? (data['question'] != null ? 'question' : 'diagnosis')).toString();
+    final validationError = data['validationError']?.toString();
+
     if (type == 'question') {
       final qMap = _asMapSD(data['question'] ?? data);
-      return (question: TriageQuestion.fromMap(qMap), diagnosis: null);
+      return (
+      question: TriageQuestion.fromMap(qMap),
+      diagnosis: null,
+      validationError: validationError,
+      );
     } else {
       final dxMap = _asMapSD(data['diagnosis'] ?? data);
-      return (question: null, diagnosis: TriageDiagnosis.fromMap(dxMap));
+      return (
+      question: null,
+      diagnosis: TriageDiagnosis.fromMap(dxMap),
+      validationError: validationError,
+      );
     }
   }
 
@@ -155,7 +165,7 @@ class SessionApi {
   }
 
   // send answer, with question meta for normalization
-  Future<({TriageQuestion? question, TriageDiagnosis? diagnosis})> postAnswer({
+  Future<({TriageQuestion? question, TriageDiagnosis? diagnosis, String? validationError})> postAnswer({
     required String sessionId,
     required String questionId,
     required dynamic value,
