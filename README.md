@@ -81,5 +81,5 @@ try again to launch: `'firebase emulators:start --only "functions,firestore,auth
 In case of any errors or unexpected behaviour, please contact here: `SKostanian@uclan.ac.uk`.
 
 ## Testing.
-# For testing the backend index.ts function go to functions/ folder `cd functions` and use `npm test`.
-# For testing the frontend UI and widgets go to root of the project and type `flutter test` in console.
+### For testing the backend index.ts function go to functions/ folder `cd functions` and use `npm test`.
+### For testing the frontend UI and widgets go to root of the project and type `flutter test` in console.
