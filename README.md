@@ -79,3 +79,6 @@ taskkill /F /IM java.exe
 try again to launch: `'firebase emulators:start --only "functions,firestore,auth"` and type the flutter commands on 5 in new terminal.
 
 In case of any errors or unexpected behaviour, please contact here: `SKostanian@uclan.ac.uk`.
+
+## Testing.
+For testing the index.ts function go to functions/ folder `cd functions` and use `npm test`.
