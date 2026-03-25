@@ -133,6 +133,7 @@ try again to launch: `'firebase emulators:start --only "functions,firestore,auth
 ### 8) Open a new terminal
 And type:
 ```
+cd DiagnosisAI
 flutter pub get
 flutter run
 ```
