@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io' show Platform;
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -27,13 +26,17 @@ class AuthScreen extends StatefulWidget {
   final VoidCallback onSkip;
   final bool isDarkMode;
   final ValueChanged<bool> onThemeChanged;
+  final AuthService authService;
+  final bool showImages;
 
-  const AuthScreen({
+  AuthScreen({
     required this.onSkip,
     required this.isDarkMode,
     required this.onThemeChanged,
+    AuthService? authService,
+    this.showImages = true,
     super.key,
-  });
+  }) : authService = authService ?? AuthService();
 
   @override
   State<AuthScreen> createState() => _AuthScreenState();
@@ -56,8 +59,8 @@ class _AuthScreenState extends State<AuthScreen> {
 
     _initConsent();
 
-    _applyUser(AuthService().currentUser);
-    _authSub = AuthService().userChanges.listen((u) {
+    _applyUser(widget.authService.currentUser);
+    _authSub = widget.authService.userChanges.listen((u) {
       if (!mounted) return;
       setState(() => _applyUser(u));
     });
@@ -92,14 +95,14 @@ class _AuthScreenState extends State<AuthScreen> {
       photoUrl: u.photoURL,
     );
 
-    _canShowAccount = AuthService().shouldShowAccountHeader(u);
+    _canShowAccount = widget.authService.shouldShowAccountHeader(u);
   }
 
   bool get _showUnverifiedBanner {
     final u = _authUser;
     if (u == null) return false;
     final providers = u.providerData.map((p) => p.providerId).toSet();
-    return !AuthService().shouldShowAccountHeader(u) && providers.contains('password');
+    return !widget.authService.shouldShowAccountHeader(u) && providers.contains('password');
   }
 
   Future<bool> _ensureConsent() async {
@@ -179,10 +182,12 @@ class _AuthScreenState extends State<AuthScreen> {
         ),
         actions: [
           TextButton(
+            key: const Key('dialog_no'),
             onPressed: () => Navigator.of(ctx).pop(),
             child: Text('auth.no'.tr()),
           ),
           TextButton(
+            key: const Key('dialog_yes'),
             onPressed: () {
               Navigator.of(ctx).pop();
               widget.onSkip();
@@ -198,7 +203,7 @@ class _AuthScreenState extends State<AuthScreen> {
     final ok = await _ensureConsent();
     if (!ok) return;
 
-    final user = await AuthService().signInWithGoogle();
+    final user = await widget.authService.signInWithGoogle();
     if (!mounted) return;
 
     if (user == null) {
@@ -305,7 +310,7 @@ class _AuthScreenState extends State<AuthScreen> {
     if (choice == null) return;
 
     if (choice == 'signout') {
-      await AuthService().signOutAll();
+      await widget.authService.signOutAll();
       if (!mounted) return;
 
       setState(() => _applyUser(null));
@@ -316,7 +321,7 @@ class _AuthScreenState extends State<AuthScreen> {
     }
 
     if (choice == 'switch') {
-      final user = await AuthService().signInWithGoogle(forceChooseAccount: true);
+      final user = await widget.authService.signInWithGoogle(forceChooseAccount: true);
       if (!mounted) return;
 
       if (user != null) {
@@ -333,6 +338,8 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   Widget _buildOAuthButton({
+    // this is for twst
+    Key? key,
     required String label,
     required String assetPath,
     required VoidCallback onTap,
@@ -350,6 +357,7 @@ class _AuthScreenState extends State<AuthScreen> {
       width: double.infinity,
       height: height,
       child: ElevatedButton(
+        key: key,
         onPressed: onTap,
         style: ElevatedButton.styleFrom(
           elevation: 3,
@@ -364,7 +372,9 @@ class _AuthScreenState extends State<AuthScreen> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Image.asset(assetPath, height: iconSize),
+            widget.showImages
+                ? Image.asset(assetPath, height: iconSize)
+                : SizedBox(width: iconSize, height: iconSize),
             const SizedBox(width: 12),
             Text(
               label,
@@ -417,6 +427,7 @@ class _AuthScreenState extends State<AuthScreen> {
                 width: double.infinity,
                 height: 52,
                 child: OutlinedButton(
+                  key: const Key('email_option'),
                   onPressed: () {
                     Navigator.of(ctx).pop();
                     _signInWithEmail(context);
@@ -436,6 +447,7 @@ class _AuthScreenState extends State<AuthScreen> {
                 width: double.infinity,
                 height: 52,
                 child: OutlinedButton(
+                  key: const Key('phone_option'),
                   onPressed: () {
                     Navigator.of(ctx).pop();
                     _signInWithPhone(context);
@@ -495,6 +507,8 @@ class _AuthScreenState extends State<AuthScreen> {
         leading: Padding(
           padding: const EdgeInsets.only(left: 12.0),
           child: Switch(
+            // it is for theme test
+            key: const Key('theme_switch'),
             value: isDarkMode,
             onChanged: widget.onThemeChanged,
             activeColor: Colors.white,
@@ -571,17 +585,18 @@ class _AuthScreenState extends State<AuthScreen> {
       body: Stack(
         children: [
           Container(decoration: BoxDecoration(gradient: gradient)),
-          Positioned.fill(
-            child: IgnorePointer(
-              child: Transform.scale(
-                scale: 1.12,
-                child: Image.asset(
-                  isDarkMode ? 'assets/frame_dark.png' : 'assets/frame_light.png',
-                  fit: BoxFit.fill,
+          if (widget.showImages)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: Transform.scale(
+                  scale: 1.12,
+                  child: Image.asset(
+                    isDarkMode ? 'assets/frame_dark.png' : 'assets/frame_light.png',
+                    fit: BoxFit.fill,
+                  ),
                 ),
               ),
             ),
-          ),
           SafeArea(
             child: LayoutBuilder(
               builder: (context, constraints) {
@@ -657,12 +672,14 @@ class _AuthScreenState extends State<AuthScreen> {
                             ),
                           ),
                         SizedBox(height: screenHeight * 0.008),
-                        Image.asset(
+                        widget.showImages
+                            ? Image.asset(
                           'assets/logo.png',
                           height: screenHeight * 0.45,
                           width: screenWidth * 1.5,
                           fit: BoxFit.contain,
-                        ),
+                        )
+                            : SizedBox(height: screenHeight * 0.45),
                         Padding(
                           padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.06),
                           child: RichText(
@@ -696,6 +713,7 @@ class _AuthScreenState extends State<AuthScreen> {
                           child: Column(
                             children: [
                               _buildOAuthButton(
+                                key: const Key('google_button'),
                                 label: 'auth.continue_google'.tr(),
                                 assetPath: 'assets/google_logo.png',
                                 onTap: _handleContinueWithGoogle,
@@ -704,20 +722,7 @@ class _AuthScreenState extends State<AuthScreen> {
                                 foreground: isDarkMode ? Colors.white : Colors.black87,
                               ),
                               const SizedBox(height: 12),
-                              if (Platform.isIOS)
-                                _buildOAuthButton(
-                                  label: 'auth.continue_apple'.tr(),
-                                  assetPath: 'assets/apple_logo_white.png',
-                                  onTap: () async {
-                                    final ok = await _ensureConsent();
-                                    if (!ok) return;
-                                    // TODO: implement sign in with apple
-                                  },
-                                  isDark: true,
-                                  background: const Color(0xFF000000),
-                                  foreground: Colors.white,
-                                ),
-                              SizedBox(height: Platform.isIOS ? 16 : 12),
+                              const SizedBox(height: 12),
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
@@ -751,6 +756,7 @@ class _AuthScreenState extends State<AuthScreen> {
                               Align(
                                 alignment: Alignment.center,
                                 child: TextButton(
+                                  key: const Key('email_phone_button'),
                                   onPressed: _handleSignInEmailPhone,
                                   child: Text(
                                     'auth.sign_in_email_phone'.tr(),
@@ -768,6 +774,8 @@ class _AuthScreenState extends State<AuthScreen> {
                         Padding(
                           padding: const EdgeInsets.only(top: 8.0, bottom: 24),
                           child: TextButton(
+                            // skip button test
+                            key: const Key('skip_button'),
                             onPressed: _handleSkip,
                             child: Text(
                               'auth.skip_registration'.tr(),
@@ -884,6 +892,7 @@ class _ConsentSheetState extends State<_ConsentSheet> {
             const SizedBox(height: 12),
             Divider(color: divider, height: 1),
             CheckboxListTile(
+              key: const Key('consent_checkbox'),
               value: checked,
               onChanged: (v) => setState(() => checked = v ?? false),
               controlAffinity: ListTileControlAffinity.leading,
@@ -897,6 +906,7 @@ class _ConsentSheetState extends State<_ConsentSheet> {
               width: double.infinity,
               height: 52,
               child: ElevatedButton(
+                key: const Key('consent_accept_button'),
                 onPressed: checked ? () => Navigator.of(context).pop(true) : null,
                 style: ElevatedButton.styleFrom(
                   shape: const StadiumBorder(),
@@ -909,6 +919,7 @@ class _ConsentSheetState extends State<_ConsentSheet> {
               ),
             ),
             TextButton(
+              key: const Key('consent_decline_button'),
               onPressed: () => Navigator.of(context).pop(false),
               child: Text(
                 'consent.decline'.tr(),
