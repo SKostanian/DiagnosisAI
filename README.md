@@ -73,14 +73,15 @@ cd DiagnosisAI
 ```
 
 ### Configuration
-DiagnosisAI uses service-account.json which holds private information about google authentification private key and app's private key. 
+DiagnosisAI uses **service-account.json** which holds private information about google authentification private key and app's private key. 
 
 **It MUST NOT be shared with third parties.**
+(Please make sure that you copied and move service-account.json file to the DiagnosisAI project)
 
 To launch configuration, the following commands are used:
 
 ### 1) Configure google credentials
-Set the environment variable GOOGLE_APPLICATION_CREDENTIALS to the path of the service-account.json file:
+Set the environment variable GOOGLE_APPLICATION_CREDENTIALS to the path of the service-account.json file in your project:
 ```
 $env:GOOGLE_APPLICATION_CREDENTIALS="your path to the service-account.json file"
 
