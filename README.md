@@ -67,8 +67,8 @@ To setup DiagnosisAI you need:
 6)   Node.js   (https://nodejs.org/en/download, project uses Node 22 version for stable work with dependencies).
 
 ### Installation
-git clone https://github.com/SKostanian/DiagnosisAI
-cd DiagnosisAI
+- git clone https://github.com/SKostanian/DiagnosisAI
+- cd DiagnosisAI
 
 ### Configuration
 DiagnosisAI uses service-account.json which holds private information about google authentification private key and app's private key. 
@@ -83,7 +83,7 @@ Set the environment variable GOOGLE_APPLICATION_CREDENTIALS to the path of the s
 $env:GOOGLE_APPLICATION_CREDENTIALS="your path to the service-account.json file"
 
 Example:
-$env:GOOGLE_APPLICATION_CREDENTIALS="C:\Users\Sasha\StudioProjects\DiagnosisAI\service-account.json"
+$env:GOOGLE_APPLICATION_CREDENTIALS="service-account.json"
 ```
 
 ### 2) Authenticate the service account
@@ -103,14 +103,16 @@ Navigate to the functions directory,
 ```
 cd "your path to the DiagnosisAI project"/functions"
 
-Example: cd DiagnosisAI\functions
+Example: cd functions
 ```
-and run the typescript build:
+### 4) Install npm and run build
+npm install and run the typescript build:
 ```
+npm install
 npm run build
 ```
 
-### 4) Start firebase emulator
+### 5) Start firebase emulator
 Start the local firebase emulators:
 ```
 firebase emulators:start --only "functions,firestore,auth"
@@ -118,20 +120,20 @@ firebase emulators:start --only "functions,firestore,auth"
 This allows the app to run locally on emulator. Project is using Cloud functions, firestore database and firebase authentification. 
 (It requires some time to run).
 
-### 5) Open a new terminal
+### 6) In case of Firebase emulator error (VERY IMPORTANT).
+Please run in new Powershell window
+```
+taskkill /F /IM java.exe
+```
+try again to launch: `'firebase emulators:start --only "functions,firestore,auth"` and type the flutter command on section 7 in new terminal.
+
+### 7) Open a new terminal
 And type:
 ```
 flutter pub get
 flutter run
 ```
 To run the flutter locally and see the DiagnosisAI application on emulator.
-
-### 6) In case of Firebase emulator error (VERY IMPORTANT).
-Please run in new Powershell window
-```
-taskkill /F /IM java.exe
-```
-try again to launch: `'firebase emulators:start --only "functions,firestore,auth"` and type the flutter commands on 5 in new terminal.
 
 You can skip registration (tap on red text and select yes) to reach out to the body selection screen and triage quickly.
 
@@ -140,12 +142,11 @@ In case of any errors or unexpected behaviour, please contact here: `SKostanian@
 ## Development.
 
 ### Running Tests
-For testing the backend index.ts function go to functions/ folder `cd functions` and use `npm test`.
-For testing the frontend UI and widgets go to root of the project `cd DiagnosisAI` and type `flutter test` in console.
+- For testing the backend index.ts function go to functions/ folder `cd functions` and use `npm test`.
+- For testing the frontend UI and widgets go to root of the project `cd DiagnosisAI` and type `flutter test` in console.
 
 ## Project Structure.
 <img width="411" height="318" alt="DiagnosisAI drawio" src="https://github.com/user-attachments/assets/ec8ab1c1-1b20-4866-b9aa-09d2d5aebe00" />
-
 
 ## Roadmap
 
@@ -167,16 +168,16 @@ For testing the frontend UI and widgets go to root of the project `cd DiagnosisA
 - Optimize backend and reduce the time of responses.
 
 ## Contributing
-I would like to express my gratitude to Nearchos Paspallis for giving me a guideline and suggestions on how to improve DiagnosisAI project. 
+- I would like to express my gratitude to Nearchos Paspallis for giving me a guideline and suggestions on how to improve DiagnosisAI project. 
 DiagnosisAI project is not a final or fully ready-made product, but an evolving system with clear opportunities for further improvement.
 
-I am grateful to Infermedica team for giving me access to their API.  
+- I am grateful to Infermedica team for giving me access to their API.  
 For this project however, I chose to design and implement my own system in order to better understand how such triage systems work in practice.
 
 ## Contact
-Spartak
-**SKostanian@uclan.ac.uk**
-https://github.com/SKostanian/DiagnosisAI
+- Spartak
+- **SKostanian@uclan.ac.uk**
+- https://github.com/SKostanian/DiagnosisAI
 
 ## Acknowledgements
 This project gave me an understanding on how serverless, AI powered, and medical triage systems work. How they might be configured, how complex ideas can be interpreted into parts of code and connected together.  
