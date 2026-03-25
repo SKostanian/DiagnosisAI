@@ -102,14 +102,15 @@ const DIAGNOSIS_SCHEMA = {
 
 // normalizing and checking duplications
 const SKIP_VALUE = "__duplicate_client_skip__";
-function normalizeText(s: string): string {
+
+export function normalizeText(s: string): string {
     // Unicode character class escape: \p{...}, \P{...} (no date) MDN Web Docs. Available at: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Regular_expressions/Unicode_character_class_escape (Accessed: March 12, 2026).
     // delete all the punctuation, spaces, leave inly L letters, N numbers and 1 space
   return (s || "").toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ").replace(/\s+/g, " ").trim();
 }
 
 // I have function to classify the keywords in generated questions to each category
-function canonicalQuestionKey(text: string): string | null {
+export function canonicalQuestionKey(text: string): string | null {
   const t = normalizeText(text);
   if (/(where|which side|location|где|какая часть|какая половина|локализ)/.test(t)) return "location";
   if (/(quality|what does it feel|character|характер|как .* (болит|ощущается)|пульсир|колющ|туп|жгуч)/.test(t)) return "quality";
@@ -123,7 +124,7 @@ function canonicalQuestionKey(text: string): string | null {
 // Wikipedia contributors (2025) Jaccard index, Wikipedia, The Free Encyclopedia. Available at: https://en.wikipedia.org/w/index.php?title=Jaccard_index&oldid=1311865137.
 // Jaccard similarity between 2 texts based on shared words
 
-function jaccardSimilarity(a: string, b: string): number {
+export function jaccardSimilarity(a: string, b: string): number {
   // Set - JavaScript (2026) MDN Web Docs. Available at: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Set (Accessed: March 12, 2026).
 
   // Array.Prototype.Filter() (2026) MDN Web Docs. Available at: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/filter (Accessed: March 12, 2026).
@@ -141,13 +142,13 @@ function jaccardSimilarity(a: string, b: string): number {
 
 // if a new text is semantically similar to any previously asked text
 // no flase positives if higher theshold
-function isSemanticallyDuplicate(text: string, askedTexts: string[], threshold = 0.7): boolean {
+export function isSemanticallyDuplicate(text: string, askedTexts: string[], threshold = 0.7): boolean {
 
     // Array.Prototype.Some() (2026) MDN Web Docs. Available at: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/some (Accessed: March 12, 2026).
   return askedTexts.some((prev) => jaccardSimilarity(text, prev) >= threshold);
 }
 
-function normalizeLocaleTag(locale: string): string {
+export function normalizeLocaleTag(locale: string): string {
 
     // by default eng
     // BCP 47 language tag (2026) MDN Web Docs. Available at: https://developer.mozilla.org/en-US/docs/Glossary/BCP_47_language_tag (Accessed: March 12, 2026).
@@ -165,7 +166,7 @@ function listInline(items: string[]) {
   return items.join(" * ");
 }
 
-function normalizeNumericValue(v: any, clamp0to10 = true) {
+export function normalizeNumericValue(v: any, clamp0to10 = true) {
   if (typeof v === "number") {
       // normalize value from 0 to 10
     const n = Math.round(v);
@@ -191,7 +192,7 @@ function isNumericQuestion(questionId: string): boolean {
   return questionId === "severity";
 }
 
-function normalizeAnswerValue(questionId: string, value: any, tag: string): any {
+export function normalizeAnswerValue(questionId: string, value: any, tag: string): any {
   if (isNumericQuestion(questionId)) {
     return normalizeNumericValue(value, true);
   }
@@ -208,7 +209,7 @@ function normalizeAnswerValue(questionId: string, value: any, tag: string): any 
 }
 
 // normalization of diagnoses
-function normalizeDx(diag: any, areas?: string[]) {
+export function normalizeDx(diag: any, areas?: string[]) {
     // extract the array of diagnoses if present, ir use an empty array
   let items: any[] = Array.isArray(diag?.dx) ? diag.dx : [];
 
@@ -378,7 +379,7 @@ function getExclusiveMultiValues(questionId: string, tag: string): string[] | nu
   return tag === "ru-RU" ? cfg.ru : cfg.en;
 }
 
-function hasInvalidExclusiveMultiSelection(
+export function hasInvalidExclusiveMultiSelection(
   questionId: string,
   value: any,
   tag: string
@@ -392,7 +393,7 @@ function hasInvalidExclusiveMultiSelection(
   return pickedExclusive.length > 0 && value.length > pickedExclusive.length;
 }
 
-function buildExclusiveMultiValidationMessage(questionId: string, tag: string): string {
+export function buildExclusiveMultiValidationMessage(questionId: string, tag: string): string {
   const exclusiveValues = getExclusiveMultiValues(questionId, tag) || [];
 
   const exclusiveLabel = exclusiveValues[0] || (tag === "ru-RU" ? "Нет" : "None");
@@ -839,7 +840,7 @@ const MUST_ASK_BY_AREA = {
 };
 
 // I compute chest priority order based on feeling by user
-function chestPriorityOrder(feel: string | undefined): string[] | null {
+export function chestPriorityOrder(feel: string | undefined): string[] | null {
   if (!feel || typeof feel !== "string") return null;
   const f = feel.toLowerCase();
 
@@ -887,7 +888,7 @@ function chestPriorityOrder(feel: string | undefined): string[] | null {
 }
 
 // pick next must ask question // chest
-function nextMustAsk(
+export function nextMustAsk(
   tag: string,
   areas: string[],
   answers: Record<string, any>,
@@ -941,7 +942,7 @@ function nextMustAsk(
 }
 
 // here is funciton to finalize question object before sending to client
-function sanitizeQuestion(
+export function sanitizeQuestion(
   q: any,
   tag: string,
   selectedAreas: string[],
@@ -1013,7 +1014,7 @@ function sanitizeQuestion(
 }
 
 // Helperб determine if a question should be skipped based on existing answers
-function shouldSkipQuestion(q: any, answers: Record<string, any>, tag: string): boolean {
+export function shouldSkipQuestion(q: any, answers: Record<string, any>, tag: string): boolean {
   const text = (q?.text || "").toString();
 
   // skip smoking duration if user never smoked
@@ -1041,7 +1042,7 @@ function shouldSkipQuestion(q: any, answers: Record<string, any>, tag: string): 
 }
 
 // I have fallback question function, based on priorities, what missing
-function nextFallbackQuestion(
+export function nextFallbackQuestion(
   tag: string,
   selectedAreas: string[],
   answers: Record<string, any>,
@@ -1079,7 +1080,7 @@ function nextFallbackQuestion(
 }
 
 // probability
-function toPct(n: number): number {
+export function toPct(n: number): number {
   if (!Number.isFinite(n)) return 0;
   return Math.max(0, Math.min(100, Math.round(n * 100)));
 }
