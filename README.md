@@ -144,7 +144,8 @@ For testing the backend index.ts function go to functions/ folder `cd functions`
 For testing the frontend UI and widgets go to root of the project `cd DiagnosisAI` and type `flutter test` in console.
 
 ## Project Structure.
-<img width="761" height="591" alt="image" src="https://github.com/user-attachments/assets/035ea741-ba5b-41f8-89bc-9a95e3c44caa" />
+<img width="411" height="318" alt="DiagnosisAI drawio" src="https://github.com/user-attachments/assets/ec8ab1c1-1b20-4866-b9aa-09d2d5aebe00" />
+
 
 ## Roadmap
 
