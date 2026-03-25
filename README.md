@@ -103,7 +103,7 @@ Navigate to the functions directory,
 ```
 cd "your path to the DiagnosisAI project"/functions"
 
-Example: cd C:\Users\Sasha\StudioProjects\DiagnosisAI\functions
+Example: cd DiagnosisAI\functions
 ```
 and run the typescript build:
 ```
