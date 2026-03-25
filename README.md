@@ -8,7 +8,7 @@ Currently it does not have a medical license and all the diagnoses provided in c
 # Setup:
 
 To setup DiagnosisAI you need:
-1)   Android Studio   (https://developer.android.com/studio).
+1)   Android Studio with Android Phone emulator   (https://developer.android.com/studio).
 2)   service-account.json   (It is a sensitive file, it holds private API Key and it is submitted on Uclan blackboard).
 3)   Flutter SDK   (https://docs.flutter.dev/install).
 4)   Firebase CLI   (http://firebaseopensource.com/projects/firebase/firebase-tools).
@@ -61,7 +61,8 @@ Start the local firebase emulators:
 ```
 firebase emulators:start --only "functions,firestore,auth"
 ```
-This allows the app to run locally on emulator. Project is using Cloud functions, firestore database and firebase authentification.
+This allows the app to run locally on emulator. Project is using Cloud functions, firestore database and firebase authentification. 
+(It requires some time to run).
 
 ## 5) Open a new terminal
 And type:
@@ -72,7 +73,7 @@ flutter run
 To run the flutter locally and see the DiagnosisAI application on emulator.
 
 ## 6) In case of Firebase emulator error (VERY IMPORTANT).
-Please run in Powershell window
+Please run in new Powershell window
 ```
 taskkill /F /IM java.exe
 ```
