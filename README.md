@@ -67,8 +67,10 @@ To setup DiagnosisAI you need:
 6)   Node.js   (https://nodejs.org/en/download, project uses Node 22 version for stable work with dependencies).
 
 ### Installation
-- git clone https://github.com/SKostanian/DiagnosisAI
-- cd DiagnosisAI
+```
+git clone https://github.com/SKostanian/DiagnosisAI
+cd DiagnosisAI
+```
 
 ### Configuration
 DiagnosisAI uses service-account.json which holds private information about google authentification private key and app's private key. 
@@ -98,21 +100,21 @@ Set the project which is used by Google Cloud and Firebase:
 gcloud config set project health-app-9b2f5
 ```
 
-### 3) Build firebase cloud functions
+### 4) Build firebase cloud functions
 Navigate to the functions directory,
 ```
 cd "your path to the DiagnosisAI project"/functions"
 
 Example: cd functions
 ```
-### 4) Install npm and run build
+### 5) Install npm and run build
 npm install and run the typescript build:
 ```
 npm install
 npm run build
 ```
 
-### 5) Start firebase emulator
+### 6) Start firebase emulator
 Start the local firebase emulators:
 ```
 firebase emulators:start --only "functions,firestore,auth"
@@ -120,14 +122,14 @@ firebase emulators:start --only "functions,firestore,auth"
 This allows the app to run locally on emulator. Project is using Cloud functions, firestore database and firebase authentification. 
 (It requires some time to run).
 
-### 6) In case of Firebase emulator error (VERY IMPORTANT).
+### 7) In case of Firebase emulator error (VERY IMPORTANT).
 Please run in new Powershell window
 ```
 taskkill /F /IM java.exe
 ```
-try again to launch: `'firebase emulators:start --only "functions,firestore,auth"` and type the flutter command on section 7 in new terminal.
+try again to launch: `'firebase emulators:start --only "functions,firestore,auth"` and type the flutter commands on section 8 in new terminal.
 
-### 7) Open a new terminal
+### 8) Open a new terminal
 And type:
 ```
 flutter pub get
